@@ -1,0 +1,25 @@
+{
+  "name": "millytour-backend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node server/index.mjs",
+    "dev": "node server/dev.mjs",
+    "seed": "node scripts/seed.mjs",
+    "bots": "node scripts/bots.mjs"
+  },
+  "dependencies": {
+    "@oslojs/crypto": "^1.0.1",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^5.1.0",
+    "hono": "^4.10.7",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1"
+  }
+}

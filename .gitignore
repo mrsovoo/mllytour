@@ -4,5 +4,5 @@
 .env.*
 !.env.example
 node_modules
-data/*.db
+**/data/*.db
 dist
