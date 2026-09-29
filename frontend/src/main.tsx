@@ -185,11 +185,27 @@ function RouteSyncer() {
 }
 
 
+function TelegramInit() {
+  useEffect(() => {
+    try {
+      const tg = (window as any).Telegram?.WebApp;
+      if (tg) {
+        tg.ready();
+        tg.expand();
+      }
+    } catch (e) {
+      console.warn("Telegram WebApp init:", e);
+    }
+  }, []);
+  return null;
+}
+
 const root = createRoot(document.getElementById("root")!);
 
 root.render(
   <StrictMode>
     <RootErrorBoundary>
+      <TelegramInit />
       <ToolbarErrorBoundary>
         <VlyToolbar />
       </ToolbarErrorBoundary>
