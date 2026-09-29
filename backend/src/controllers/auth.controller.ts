@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { prisma } from "../db/client.js";
-import { hashPassword, verifyPassword, createToken } from "../utils/security.js";
+import { hashPassword, verifyPassword, createToken, validateTelegramWebAppData } from "../utils/security.js";
+import { config } from "../config/index.js";
 import { successResponse, errorResponse } from "../utils/response.js";
 import { z } from "zod";
 
@@ -120,3 +121,82 @@ export async function getMe(req: Request, res: Response) {
 
   return successResponse(res, { user });
 }
+
+export async function telegramAuth(req: Request, res: Response) {
+  try {
+    const { initData, role } = req.body;
+    if (!initData) {
+      return errorResponse(res, "initData majburiy", "VALIDATION_ERROR", 400);
+    }
+
+    const { isValid, user: tgUser } = validateTelegramWebAppData(
+      initData,
+      config.telegramBotToken,
+    );
+
+    if (!isValid || !tgUser?.id) {
+      return errorResponse(res, "Telegram autentifikatsiyasi noto'g'ri (Invalid initData)", "UNAUTHORIZED", 401);
+    }
+
+    const telegramId = BigInt(tgUser.id);
+    const targetRole = role === "PARTNER" ? "PARTNER" : "CUSTOMER";
+
+    // 1. Telegram ID orqali mavjud foydalanuvchini topish yoki yaratish
+    let user = await prisma.user.findFirst({
+      where: { telegramId },
+    });
+
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          telegramId,
+          telegramUsername: tgUser.username || null,
+          name: [tgUser.first_name, tgUser.last_name].filter(Boolean).join(" ") || "Telegram Foydalanuvchi",
+          role: targetRole,
+          language: tgUser.language_code || "uz",
+        },
+      });
+    }
+
+    // 2. Agar foydalanuvchi hamkor bo'lsa, hamkor profilini topish
+    let partner = null;
+    if (targetRole === "PARTNER" || user.role === "PARTNER") {
+      partner = await prisma.partner.findFirst({
+        where: { telegramId },
+        include: { services: true },
+      });
+    }
+
+    const token = createToken({
+      id: user.id,
+      role: user.role,
+      telegramId: user.telegramId?.toString(),
+    });
+
+    res.cookie("millytour_session", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    return successResponse(res, {
+      user: {
+        id: user.id,
+        name: user.name,
+        role: user.role,
+        telegramId: user.telegramId?.toString(),
+      },
+      partner: partner
+        ? {
+            ...partner,
+            telegramId: partner.telegramId?.toString(),
+          }
+        : null,
+      token,
+    });
+  } catch (err: any) {
+    return errorResponse(res, err.message || "Telegram orqali kirishda xatolik");
+  }
+}
+

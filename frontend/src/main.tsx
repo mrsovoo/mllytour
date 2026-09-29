@@ -44,6 +44,7 @@ const Partner = lazy(() => import("./pages/Partner.tsx"));
 const Checkout = lazy(() => import("./pages/Checkout.tsx"));
 const PaymentSuccess = lazy(() => import("./pages/PaymentSuccess.tsx"));
 const PaymentFailed = lazy(() => import("./pages/PaymentFailed.tsx"));
+const PartnerMiniApp = lazy(() => import("./pages/PartnerMiniApp.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 
 /** Oddiy (public) sayt marshrutlari — 404 alohida qo'shiladi. */
@@ -77,6 +78,8 @@ const PUBLIC_ROUTES: RouteObject[] = [
   { path: "/memories", element: <RequireAuth><Dashboard /></RequireAuth> },
   { path: "/reviews", element: <RequireAuth><Dashboard /></RequireAuth> },
   { path: "/partner", element: <Public><Partner /></Public> },
+  { path: "/partner/app", element: <PartnerMiniApp /> },
+  { path: "/partner-app", element: <PartnerMiniApp /> },
 ];
 
 function AppRouter() {

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { register, login, logout, getMe } from "../controllers/auth.controller.js";
+import { register, login, logout, getMe, telegramAuth } from "../controllers/auth.controller.js";
 import { listTours, getTourById, createTour } from "../controllers/tours.controller.js";
 import { createOrder, listOrders, getOrderById } from "../controllers/orders.controller.js";
 import {
@@ -44,6 +44,7 @@ router.get("/health", (_req, res) => {
 router.post("/auth/register", register);
 router.post("/auth/login", login);
 router.post("/auth/logout", logout);
+router.post("/auth/telegram", telegramAuth);
 router.get("/auth/me", requireAuth, getMe);
 
 // Tours Routes
