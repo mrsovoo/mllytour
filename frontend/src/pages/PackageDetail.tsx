@@ -133,8 +133,8 @@ export default function PackageDetail() {
         customerName: user?.name ?? undefined,
         note: addons.length > 0 ? `Qo'shimcha: ${addons.join(", ")}` : undefined,
       });
-      toast.success(`Buyurtma qabul qilindi · ${result.reference}`);
-      navigate("/dashboard");
+      toast.success(`Buyurtma yaratildi · ${result.reference || "MT-2026"}`);
+      navigate(`/checkout/${result.id || result.reference || tour.slug}`);
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Buyurtmani yaratishda xatolik yuz berdi.",
