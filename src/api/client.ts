@@ -52,7 +52,7 @@ export function useRestQuery<T = any>(
     return () => {
       active = false;
     };
-  }, [module, operation, key, enabled]);
+  }, [module, operation, key, args, enabled]);
 
   return enabled ? value : undefined;
 }

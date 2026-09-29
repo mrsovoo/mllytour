@@ -69,7 +69,7 @@ export function AiAssistant() {
 
   useEffect(() => {
     if (open || reducedMotion) {
-      setNudge(false);
+      setTimeout(() => setNudge(false), 0);
       return;
     }
     let hideTimer = 0;

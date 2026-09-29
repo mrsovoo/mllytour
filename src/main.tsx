@@ -1,5 +1,5 @@
 import '@vly-ai/integrations';
-import { Toaster } from "@/components/ui/sonner";
+import { Toaster } from '@/components/ui';
 import { RequireAuth } from "@/components/RequireAuth";
 import { VlyToolbar } from "../vly-toolbar-readonly.tsx";
 import { AiAssistant } from "@/components/AiAssistant";
@@ -8,7 +8,7 @@ import { OnboardingGate } from "@/components/OnboardingGate";
 import { SiteLayout } from "@/components/site";
 import React, { StrictMode, useEffect, lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router";
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useRoutes } from "react-router";
 import { LangProvider } from "@/lib/i18n";
 import "./index.css";
 
@@ -41,7 +41,35 @@ const AuthPage = lazy(() => import("./pages/Auth.tsx"));
 const Dashboard = lazy(() => import("./pages/Dashboard.tsx"));
 const Partner = lazy(() => import("./pages/Partner.tsx"));
 const Admin = lazy(() => import("./pages/Admin.tsx"));
+const AdminLogin = lazy(() => import("./pages/AdminLogin.tsx"));
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard.tsx"));
+const AdminPartners = lazy(() => import("./pages/AdminPartners.tsx"));
+const AdminHotels = lazy(() => import("./pages/AdminHotels.tsx"));
+const AdminRestaurants = lazy(() => import("./pages/AdminRestaurants.tsx"));
+const AdminUsers = lazy(() => import("./pages/AdminUsers.tsx"));
+const AdminSettings = lazy(() => import("./pages/AdminSettings.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
+
+function AdminRoutes() {
+  const routes = useRoutes([
+    { path: "/admin/login", element: <AdminLogin /> },
+    {
+      path: "/admin",
+      element: <RequireAdmin />,
+      children: [
+        { path: "dashboard", element: <AdminDashboard /> },
+        { path: "partners", element: <AdminPartners /> },
+        { path: "hotels", element: <AdminHotels /> },
+        { path: "restaurants", element: <AdminRestaurants /> },
+        { path: "users", element: <AdminUsers /> },
+        { path: "settings", element: <AdminSettings /> },
+        { index: true, element: <AdminDashboard /> },
+      ],
+    },
+  ]);
+
+  return routes;
+}
 
 // Simple loading fallback for route transitions
 function RouteLoading() {
@@ -149,60 +177,42 @@ root.render(
         <BrowserRouter>
             <RouteSyncer />
             <Suspense fallback={<RouteLoading />}>
-              <Routes>
-                {APP_PANEL === "admin" ? (
-                  <>
-                    <Route
-                      path="/auth"
-                      element={<AuthPage redirectAfterAuth="/admin" />}
-                    />
-                    <Route
-                      path="/admin"
-                      element={
-                        <RequireAuth>
-                          <Admin />
-                        </RequireAuth>
-                      }
-                    />
+              {APP_PANEL === "admin" ? (
+                <>
+                  <Routes>
+                    <Route path="/auth" element={<AuthPage redirectAfterAuth="/admin" />} />
                     <Route path="*" element={<Navigate to="/admin" replace />} />
-                  </>
-                ) : APP_PANEL === "partner" ? (
-                  <>
-                    <Route
-                      path="/auth"
-                      element={<AuthPage redirectAfterAuth="/partner" />}
-                    />
-                    <Route
-                      path="/partner"
-                      element={
-                        <RequireAuth>
-                          <Partner />
-                        </RequireAuth>
-                      }
-                    />
-                    <Route path="*" element={<Navigate to="/partner" replace />} />
-                  </>
-                ) : (
-                  <>
-                    <Route path="/" element={<Public><Landing /></Public>} />
-                    <Route path="/paketlar" element={<Public><Packages /></Public>} />
-                    <Route path="/paketlar/:slug" element={<Public><PackageDetail /></Public>} />
-                    <Route path="/shaharlar" element={<Public><Destinations /></Public>} />
-                    <Route path="/takliflar" element={<Public><Deals /></Public>} />
-                    <Route path="/shaharlar/:slug" element={<Public><DestinationDetail /></Public>} />
-                    <Route path="/xizmatlar" element={<Public><Services /></Public>} />
-                    <Route path="/xizmatlar/:service" element={<Public><ServiceDetail /></Public>} />
-                    <Route path="/hunarmandlar" element={<Public><Marketplace /></Public>} />
-                    <Route path="/hamkorlar" element={<Public><Partners /></Public>} />
-                    <Route path="/hujjatlar" element={<Public><Documents /></Public>} />
-                    <Route path="/auth" element={<AuthPage redirectAfterAuth="/dashboard" />} />
-                    <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
+                  </Routes>
+                  <AdminRoutes />
+                </>
+              ) : APP_PANEL === "partner" ? (
+                <>
+                  <Routes>
+                    <Route path="/auth" element={<AuthPage redirectAfterAuth="/partner" />} />
                     <Route path="/partner" element={<RequireAuth><Partner /></RequireAuth>} />
-                    <Route path="/admin" element={<RequireAuth><Admin /></RequireAuth>} />
-                    <Route path="*" element={<Public><NotFound /></Public>} />
-                  </>
-                )}
-              </Routes>
+                    <Route path="*" element={<Navigate to="/partner" replace />} />
+                  </Routes>
+                  <AdminRoutes />
+                </>
+              ) : (
+                <Routes>
+                  <Route path="/" element={<Public><Landing /></Public>} />
+                  <Route path="/paketlar" element={<Public><Packages /></Public>} />
+                  <Route path="/paketlar/:slug" element={<Public><PackageDetail /></Public>} />
+                  <Route path="/shaharlar" element={<Public><Destinations /></Public>} />
+                  <Route path="/takliflar" element={<Public><Deals /></Public>} />
+                  <Route path="/shaharlar/:slug" element={<Public><DestinationDetail /></Public>} />
+                  <Route path="/xizmatlar" element={<Public><Services /></Public>} />
+                  <Route path="/xizmatlar/:service" element={<Public><ServiceDetail /></Public>} />
+                  <Route path="/hunarmandlar" element={<Public><Marketplace /></Public>} />
+                  <Route path="/hamkorlar" element={<Public><Partners /></Public>} />
+                  <Route path="/hujjatlar" element={<Public><Documents /></Public>} />
+                  <Route path="/auth" element={<AuthPage redirectAfterAuth="/dashboard" />} />
+                  <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
+                  <Route path="/partner" element={<RequireAuth><Partner /></RequireAuth>} />
+                  <Route path="*" element={<Public><NotFound /></Public>} />
+                </Routes>
+              )}
             </Suspense>
             <ScrollToTop />
             <AiAssistant />

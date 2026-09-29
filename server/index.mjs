@@ -333,6 +333,286 @@ async function telegramWebhook(req, res) {
 }
 app.post("/api/telegram/:bot", telegramWebhook);
 app.post("/api/payments/webhook", async (req, res) => { const secret = process.env.DODO_WEBHOOK_SECRET; if (secret) { const supplied = req.get("x-dodo-signature") || ""; const expected = createHmac("sha256", secret).update(JSON.stringify(req.body)).digest("hex"); if (supplied.length !== expected.length || !timingSafeEqual(Buffer.from(supplied), Buffer.from(expected))) return res.status(401).send("invalid signature"); } res.json({ ok: true }); });
+
+// ═══════════════════════════════════════════════════════════════
+// ADMIN PANEL — username/password auth (separate from user auth)
+// ═══════════════════════════════════════════════════════════════
+function adminConfig() {
+  const username = process.env.ADMIN_USERNAME || "admin";
+  const password = process.env.ADMIN_PASSWORD || "admin123";
+  return { username, password };
+}
+
+function adminCookieOptions() {
+  return { httpOnly: true, sameSite: "lax", secure: false, maxAge: 7 * 24 * 60 * 60 * 1000 };
+}
+
+async function currentAdmin(req) {
+  const sessionId = req.cookies?.millytour_admin_session;
+  if (!sessionId) return null;
+  return await db.get("SELECT * FROM admin_sessions WHERE id = ? AND expires_at > ?", sessionId, Date.now()) || null;
+}
+
+async function requireAdmin(req, res) {
+  const admin = await currentAdmin(req);
+  if (!admin) {
+    res.status(401).json({ error: "Admin authentication required" });
+    return null;
+  }
+  return admin;
+}
+
+app.post("/api/admin/login", async (req, res) => {
+  const { username, password } = req.body || {};
+  const config = adminConfig();
+  if (username !== config.username || password !== config.password) {
+    return res.status(401).json({ error: "Foydalanuvchi yoki parol noto'g'ri" });
+  }
+  const sessionId = randomUUID();
+  const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000;
+  await db.run("INSERT INTO admin_sessions (id, username, created_at, expires_at) VALUES (?, ?, ?, ?)", sessionId, config.username, Date.now(), expiresAt);
+  res.cookie("millytour_admin_session", sessionId, adminCookieOptions());
+  res.json({ ok: true, admin: { username: config.username, role: "owner" } });
+});
+
+app.post("/api/admin/logout", (req, res) => {
+  const sessionId = req.cookies?.millytour_admin_session;
+  if (sessionId) {
+    db.run("DELETE FROM admin_sessions WHERE id = ?", sessionId);
+  }
+  res.clearCookie("millytour_admin_session");
+  res.json({ ok: true });
+});
+
+app.get("/api/admin/me", async (req, res) => {
+  const admin = await currentAdmin(req);
+  if (!admin) return res.json({ admin: null });
+  res.json({ admin: { username: admin.username, role: admin.role } });
+});
+
+app.get("/api/admin/stats", async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const users = await db.get("SELECT COUNT(*) as count FROM users");
+  const providers = await db.get("SELECT COUNT(*) as count FROM records WHERE kind = 'provider'");
+  const bookings = await db.get("SELECT COUNT(*) as count FROM records WHERE kind = 'booking'");
+  const pendingProviders = await db.get("SELECT COUNT(*) as count FROM records WHERE kind = 'provider' AND json_extract(data, '$.status') = 'pending'");
+  const reviews = await db.get("SELECT COUNT(*) as count FROM records WHERE kind = 'review_reaction'");
+  res.json({
+    data: {
+      users: users.count,
+      providers: providers.count,
+      bookings: bookings.count,
+      pendingProviders: pendingProviders.count,
+      reviews: reviews.count,
+      gross: 0,
+      commission: 0,
+      subscriptionRevenue: 0,
+      botEvents: 0,
+    },
+  });
+});
+
+app.get("/api/admin/users", async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const users = await db.all("SELECT id, email, name, is_anonymous, role, phone, country, language, telegram_id, telegram_username, interests, onboarded_at, created_at FROM users ORDER BY created_at DESC LIMIT 50");
+  res.json({ data: users });
+});
+
+app.post("/api/admin/users/:id/role", async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const { id } = req.params;
+  const { role } = req.body;
+  if (!["user", "admin", "owner"].includes(role)) {
+    return res.status(400).json({ error: "Noto'g'ri rol" });
+  }
+  db.run("UPDATE users SET role = ? WHERE id = ?", role, id);
+  res.json({ ok: true });
+});
+
+app.post("/api/admin/users/:id/delete", async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const { id } = req.params;
+  db.run("DELETE FROM sessions WHERE user_id = ?", id);
+  db.run("DELETE FROM auth_challenges WHERE user_id = ?", id);
+  db.run("DELETE FROM records WHERE user_id = ?", id);
+  db.run("DELETE FROM users WHERE id = ?", id);
+  res.json({ ok: true });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// PARTNER / PROVIDER MANAGEMENT
+// ═══════════════════════════════════════════════════════════════
+app.get("/api/admin/providers", async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const { status, direction, city } = req.query;
+  let query = "SELECT id, kind, user_id, data, created_at FROM records WHERE kind = 'provider'";
+  const params = [];
+  if (status) { query += " AND json_extract(data, '$.status') = ?"; params.push(status); }
+  if (direction) { query += " AND json_extract(data, '$.direction') = ?"; params.push(direction); }
+  if (city) { query += " AND json_extract(data, '$.city') = ?"; params.push(city); }
+  query += " ORDER BY created_at DESC LIMIT 100";
+  const rows = await db.all(query, ...params);
+  const providers = rows.map(row => ({ ...json(row.data), _id: row.id, userId: row.user_id, createdAt: row.created_at }));
+  res.json({ data: providers });
+});
+
+app.post("/api/admin/providers/:id/status", async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const { id } = req.params;
+  const { status } = req.body;
+  if (!["pending", "approved", "paused", "rejected"].includes(status)) {
+    return res.status(400).json({ error: "Noto'g'ri holat" });
+  }
+  const row = await db.get("SELECT data FROM records WHERE id = ? AND kind = 'provider'", id);
+  if (!row) return res.status(404).json({ error: "Hamkor topilmadi" });
+  const data = { ...json(row.data), status };
+  db.run("UPDATE records SET data = ? WHERE id = ?", JSON.stringify(data), id);
+  res.json({ ok: true });
+});
+
+app.post("/api/admin/providers/:id/subscription", async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const { id } = req.params;
+  const { subscription, months } = req.body;
+  const row = await db.get("SELECT data FROM records WHERE id = ? AND kind = 'provider'", id);
+  if (!row) return res.status(404).json({ error: "Hamkor topilmadi" });
+  const data = { ...json(row.data), subscription, subscriptionUntil: Date.now() + (months || 1) * 30 * 24 * 60 * 60 * 1000 };
+  db.run("UPDATE records SET data = ? WHERE id = ?", JSON.stringify(data), id);
+  res.json({ ok: true });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// HOTEL MANAGEMENT
+// ═══════════════════════════════════════════════════════════════
+app.get("/api/admin/hotels", async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const { status, city } = req.query;
+  let query = "SELECT id, kind, user_id, data, created_at FROM records WHERE kind = 'provider' AND json_extract(data, '$.direction') = 'hotel'";
+  const params = [];
+  if (status) { query += " AND json_extract(data, '$.status') = ?"; params.push(status); }
+  if (city) { query += " AND json_extract(data, '$.city') = ?"; params.push(city); }
+  query += " ORDER BY created_at DESC LIMIT 100";
+  const rows = await db.all(query, ...params);
+  const hotels = rows.map(row => ({ ...json(row.data), _id: row.id, userId: row.user_id, createdAt: row.created_at }));
+  res.json({ data: hotels });
+});
+
+app.post("/api/admin/hotels/:id/status", async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const { id } = req.params;
+  const { status } = req.body;
+  if (!["pending", "approved", "paused", "rejected"].includes(status)) {
+    return res.status(400).json({ error: "Noto'g'ri holat" });
+  }
+  const row = await db.get("SELECT data FROM records WHERE id = ? AND kind = 'provider'", id);
+  if (!row) return res.status(404).json({ error: "Mehmonxona topilmadi" });
+  const data = { ...json(row.data), status };
+  db.run("UPDATE records SET data = ? WHERE id = ?", JSON.stringify(data), id);
+  res.json({ ok: true });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// RESTAURANT MANAGEMENT
+// ═══════════════════════════════════════════════════════════════
+app.get("/api/admin/restaurants", async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const { status, city } = req.query;
+  let query = "SELECT id, kind, user_id, data, created_at FROM records WHERE kind = 'provider' AND json_extract(data, '$.direction') = 'restaurant'";
+  const params = [];
+  if (status) { query += " AND json_extract(data, '$.status') = ?"; params.push(status); }
+  if (city) { query += " AND json_extract(data, '$.city') = ?"; params.push(city); }
+  query += " ORDER BY created_at DESC LIMIT 100";
+  const rows = await db.all(query, ...params);
+  const restaurants = rows.map(row => ({ ...json(row.data), _id: row.id, userId: row.user_id, createdAt: row.created_at }));
+  res.json({ data: restaurants });
+});
+
+app.post("/api/admin/restaurants/:id/status", async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const { id } = req.params;
+  const { status } = req.body;
+  if (!["pending", "approved", "paused", "rejected"].includes(status)) {
+    return res.status(400).json({ error: "Noto'g'ri holat" });
+  }
+  const row = await db.get("SELECT data FROM records WHERE id = ? AND kind = 'provider'", id);
+  if (!row) return res.status(404).json({ error: "Restoran topilmadi" });
+  const data = { ...json(row.data), status };
+  db.run("UPDATE records SET data = ? WHERE id = ?", JSON.stringify(data), id);
+  res.json({ ok: true });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// DIRECTION MANAGEMENT (all providers by type)
+// ═══════════════════════════════════════════════════════════════
+app.get("/api/admin/directions/:direction", async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const { direction } = req.params;
+  const validDirections = ["hotel", "transfer", "guide", "restaurant", "translator", "photographer", "artisan", "other"];
+  if (!validDirections.includes(direction)) {
+    return res.status(400).json({ error: "Noto'g'ri yo'nalish" });
+  }
+  const { status } = req.query;
+  let query = "SELECT id, kind, user_id, data, created_at FROM records WHERE kind = 'provider' AND json_extract(data, '$.direction') = ?";
+  const params = [direction];
+  if (status) { query += " AND json_extract(data, '$.status') = ?"; params.push(status); }
+  query += " ORDER BY created_at DESC LIMIT 100";
+  const rows = await db.all(query, ...params);
+  const items = rows.map(row => ({ ...json(row.data), _id: row.id, userId: row.user_id, createdAt: row.created_at }));
+  res.json({ data: items });
+});
+
+app.post("/api/admin/directions/:direction/:id/status", async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const { direction, id } = req.params;
+  const { status } = req.body;
+  if (!["pending", "approved", "paused", "rejected"].includes(status)) {
+    return res.status(400).json({ error: "Noto'g'ri holat" });
+  }
+  const row = await db.get("SELECT data FROM records WHERE id = ? AND kind = 'provider'", id);
+  if (!row) return res.status(404).json({ error: "Topilmadi" });
+  const data = { ...json(row.data), status };
+  db.run("UPDATE records SET data = ? WHERE id = ?", JSON.stringify(data), id);
+  res.json({ ok: true });
+});
+
+app.post("/api/admin/directions/:direction/:id", async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const { direction } = req.params;
+  const { businessName, phone, city, contactName, telegramUsername, about } = req.body || {};
+  const id = randomUUID();
+  const data = {
+    businessName, phone, city, contactName, telegramUsername, about,
+    direction, status: "pending", subscription: "trial", rating: 0, ratingCount: 0,
+    completedOrders: 0, walletBalance: 0, createdAt: Date.now(),
+  };
+  db.run("INSERT INTO records (id, kind, user_id, data, created_at) VALUES (?, 'provider', ?, ?, ?)", id, null, JSON.stringify(data), Date.now());
+  res.json({ ok: true, data });
+});
+
+app.post("/api/admin/directions/:direction/:id/delete", async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const { id } = req.params;
+  db.run("DELETE FROM records WHERE id = ? AND kind = 'provider'", id);
+  res.json({ ok: true });
+});
+
+// Create admin_sessions table
+await db.exec(`
+  CREATE TABLE IF NOT EXISTS admin_sessions (
+    id TEXT PRIMARY KEY,
+    username TEXT NOT NULL,
+    role TEXT DEFAULT 'owner',
+    created_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL
+  );
+`);
+try {
+  await db.exec("ALTER TABLE users ADD COLUMN created_at INTEGER NOT NULL DEFAULT 0");
+} catch (error) {
+  if (!String(error?.message).includes("duplicate column name")) throw error;
+}
+
+app.post("/api/payments/webhook", async (req, res) => { const secret = process.env.DODO_WEBHOOK_SECRET; if (secret) { const supplied = req.get("x-dodo-signature") || ""; const expected = createHmac("sha256", secret).update(JSON.stringify(req.body)).digest("hex"); if (supplied.length !== expected.length || !timingSafeEqual(Buffer.from(supplied), Buffer.from(expected))) return res.status(401).send("invalid signature"); } res.json({ ok: true }); });
 if (path.resolve(process.argv[1] || "") === fileURLToPath(import.meta.url)) {
   app.listen(port, "127.0.0.1", () => console.log(`Local backend listening on http://127.0.0.1:${port}`));
 }
