@@ -1,150 +1,199 @@
-# Millytour
+# MILLYTOUR — MVP 1.0
 
-Millytour is a Vite + React travel platform with a local Express REST backend and SQLite database.
+O'zbekiston bo'ylab shaxsiy sayohatlar, turlar va turizm xizmatlarini (gidlar, haydovchilar, mehmonxonalar, restoranlar) birlashtiruvchi zamonaviy ekotizim platformasi.
 
-## Local development
+---
 
-```bash
-npm install
-npm run dev
-```
-
-The command starts Vite at `http://localhost:5173`, Express at `http://127.0.0.1:4000`, and initializes `data/millytour.db`. The browser communicates with the backend through `/api`.
-
-Other scripts:
-
-```bash
-npm run dev:admin  # admin panel: http://localhost:3000/admin (panel rejimi)
-npm run dev:partner # hamkor paneli: http://localhost:3001/partner (panel rejimi)
-npm run build      # typecheck + production build
-npm run typecheck  # tsc -b
-npm run lint       # eslint
-npm run preview    # serve the production build
-npm run audit:ui   # responsive audit: overflow + chat size + marquee (dev server yoniq bo'lsin)
-npm run audit:admin # admin panel oqimi: guard → username/parol kirish → 6 bo'limli panel (:3000 yoniq bo'lsin)
-```
-
-### Panellar alohida portda (va alohida domenda)
-
-| Skript | Port | Rejim | Marshrutlar |
-| --- | --- | --- | --- |
-| `npm run dev` | 5173 | public | butun sayt |
-| `npm run dev:admin` | 3000 | `VITE_APP_PANEL=admin` | `/admin`, `/admin/login`, `/auth` |
-| `npm run dev:partner` | 3001 | `VITE_APP_PANEL=partner` | `/partner`, `/auth` |
-
-Panel rejimlarida ilova faqat o'z marshrutlarini ko'rsatadi, qolgan barcha manzillar panelga yo'naltiriladi. Uchtasi ham bitta backenddan (`:4000`) foydalanadi — backend allaqachon ishlayotgan bo'lsa qayta ishga tushirilmaydi, shu sababli `npm run dev` bilan bir vaqtda ochish mumkin.
-
-Admin panelga kirish: `http://localhost:3000/admin` → sessiya yo'q bo'lsa `/admin/login` ga yo'naltiriladi. Login/parol `.env` dagi `ADMIN_USERNAME` / `ADMIN_PASSWORD` dan olinadi (default: `admin` / `admin123`). Sessiya `millytour_admin_session` cookie'sida saqlanadi (7 kun) va backend'dagi `admin_sessions` jadvalida turadi.
-
-> ⚠️ Production'da `ADMIN_PASSWORD` ni albatta almashtiring — default parol faqat lokal ishlash uchun.
-
-
-Vercel'da ikki loyiha bir xil repodan deploy qilinadi:
-
-| Loyiha | Domen | Sozlama |
-| --- | --- | --- |
-| Sayt | `millytour.vercel.app` | qo'shimcha env yo'q |
-| Admin | `millytour-adm.vercel.app` | `VITE_ADMIN_ONLY=1` |
-
-## Environment
-
-Copy `.env.example` to `.env.local` and set server-only values there. Private AI and Telegram keys are read by Express and are never exposed through Vite.
-
-**All keys are optional.** The app runs fully offline without any of them: the catalog, booking flow, partner dashboard and Milly AI all work. Setting a key only replaces the corresponding fallback:
-
-| Variable | Without it | With it |
-| --- | --- | --- |
-| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | Admin panel `admin` / `admin123` bilan ochiladi | Faqat shu login/parol bilan kiriladi |
-| `GROQ_API_KEY` | Milly AI answers from the rule-based engine | Same recommendations, but the wording is written by the LLM |
-| `TELEGRAM_*_BOT_TOKEN` | Telegram login/webhook responses are simulated | Real bot messages are sent |
-| `DODO_*` | Payments return a local mock reference | Real checkout sessions |
-| `AUTH_GOOGLE_*` | Email one-time-code login only | Google sign-in |
-
-`SHOW_DEV_OTP=true` returns the email login code in the API response so you can log in locally without mail.
-
-## Milly AI
-
-Milly AI recommends **only the tour packages that already exist** in `src/data/catalog.ts` — it never invents trips or prices.
-
-- `src/lib/ai-recommend.ts` — the recommender. It ranks the catalog by price against the user's budget (budget fit is the primary signal, then city, category, trip length, rating), and always stays inside the budget when a budget is given. Each result carries a price-based explanation.
-- `src/components/planner-chat.tsx` — the chat flow. After the two itinerary variants it lists the top catalog matches, and every free-chat message sends the ranked catalog to the backend as `catalog` context.
-- `server/index.mjs` — `millyChat.chat` passes that context to the LLM as the *only* allowed source (see `CATALOG_RULE`); when no key is configured it replies from the same context with `catalogReply()`.
-- `aiStatus.status` reports `engine: "llm" | "rule-based"` and `recommender: "catalog-price"`, which the chat header shows to the user.
-
-To enable the model later, set `GROQ_API_KEY` (and optionally `GROQ_MODEL`) in `.env.local` and restart the backend. No code changes are required.
-
-## Fon va hero
-
-Sayt fonida **hech qanday rasm yo'q**: `body` da `background-image: none` (`src/index.css`), hero ham toza oq fonda, matnlar to'q rangda (`src/pages/Landing.tsx` dagi `Hero()`). Dekorativ SVG naqsh (`PatternOverlay`) va barcha fon qatlamlari olib tashlangan.
-
-Ichki sahifalarning sarlavhasi (`PageHero`) va brend bloklari hali ham ko'k gradientda — bu sahifa foni emas, alohida bloklar.
-
-## Tur paketlar va yo'nalishlar
-
-Turlar ikki turga bo'linadi (`src/lib/tours.ts`):
-
-- **Tur paket** (`package`) — bitta shahar yoki hududga qaratilgan paket, masalan `Samarqand · Samarqand viloyati`.
-- **Yo'nalish** (`direction`) — 2-3 shaharni birlashtirgan katta tur. Katalogda bunday paketning `city` maydoni `·` bilan yoziladi (`Toshkent · Samarqand · Buxoro`) — shu belgi asosida avtomatik aniqlanadi.
-
-Ko'rinish:
-
-- Bosh sahifadagi "Tur paketlar va yo'nalishlar" bo'limida **tur turi tablari** (`TourKindTabs`) — ikki tur bitta bo'lim ichida ajratiladi, tagida turkum filtri qoladi.
-- `/paketlar` sahifasida ham **"Turi"** filtri bor (`?kind=package` / `?kind=direction`).
-- Har bir kartochkada: manzil (shahar + viloyat, xarita belgisi bilan), tur nomi, kunlar/kechalar, reyting va sharhlar, guruh hajmi hamda narx ($ va so'm). Yo'nalishlarda qo'shimcha **"Yo'nalish · N shahar"** nishoni va viloyat satri chiqadi.
-
-## Yo'nalishlar (shaharlar)
-
-Shahar sahifalari mavjud tur paketlar va `CITY_SPOTS` ma'lumotlari asosida dinamik quriladi (`src/data/destinations.ts`).
-
-- Sahifalar: `/shaharlar` (ro'yxat) va `/shaharlar/:slug` (obidalar, faktlar, paketlar, yon panel). Menyudan va footer'dan kiriladi.
-- Kartochka: `src/components/destination-card.tsx`.
-
-## Bosh sahifa bo'limlari
-
-Hero → ishonch qatori → **qidiruv paneli** → qanday ishlaydi → **tur paketlar va yo'nalishlar** → tadbirlar → **Top takliflar** (`src/components/top-deals.tsx`) → xizmatlar → hunarmandlar → Milly AI → **afzalliklar qatori** (`src/components/advantages.tsx`) → hamkorlik CTA.
-
-Qidiruv paneli ixcham: faqat **shahar · kunlar · odam soni** (1104×74px). Yuborilganda `/paketlar?city=…&days=…&guests=…` ga o'tadi. Bosh sahifadagi hero karuselida esa faqat kartochkalar qolgan (nuqtalar, izoh va skrol ishorasi olib tashlangan).
-
-> "Mijozlar fikri" bo'limi hozircha o'chirilgan. Kodi (`src/lib/reviews.ts`, `src/hooks/use-review-reactions.ts`, serverdagi `reviews.reactions` / `reviews.toggleReaction`) saqlanib turibdi — kerak bo'lganda qayta ulanadi.
-
-## Footer
-
-`src/components/site.tsx` dagi `SiteFooter` — ustunlarga bo'lingan:
-
-1. **Brend + qo'llab-quvvatlash** (yuqori qator): logo, tavsif, ijtimoiy tarmoq tugmalari, 24/7 telefon va Telegram bot kartasi (`@millytour_bot` — `MAIN_BOT_USERNAME` dan olinadi).
-2. **Sayohat** — tur paketlar, yo'nalishlar, xizmatlar, hunarmandlar, hamkorlar, kabinet.
-3. **Yo'nalishlar** — `DESTINATIONS` dan dinamik (yangi shahar qo'shsangiz, ustunda o'zi paydo bo'ladi).
-4. **Xizmatlar** — 7 ta xizmat sahifasi.
-5. **Hamkorlarga** — hamkorlik shartlari, hamkor paneli, admin, hujjatlar.
-6. **Aloqa** — manzil, telefon, email, ish vaqti.
-
-Pastdagi huquqiy qatorda: yuridik havolalar (`/hujjatlar#maxfiylik`, `#foydalanish`, `#oferta`), dinamik yil bilan copyright va to'lov tizimlari (`Click`, `Payme`, `UZCARD`, `VISA`) ko'rsatilgan.
-
-Kontakt, ijtimoiy tarmoq va to'lov tarmoqlari — `FOOTER_CONTACT`, `FOOTER_SOCIALS`, `PAYMENTS` konstantalarida (bitta joyda o'zgartiriladi).
-
-## Pages
-
-Public, wrapped in `SiteLayout` (header, footer, bottom nav): `/`, `/paketlar`, `/paketlar/:slug`, `/shaharlar`, `/shaharlar/:slug`, `/xizmatlar`, `/xizmatlar/:service`, `/hunarmandlar`, `/hamkorlar`, `/hujjatlar`, 404.
-Standalone: `/auth`; behind `RequireAuth`: `/dashboard`, `/partner`.
-Admin panel: `/admin/login` (login/parol) va `RequireAdmin` ostida `/admin/dashboard`, `/admin/partners`, `/admin/hotels`, `/admin/restaurants`, `/admin/users`, `/admin/settings`.
-
-### Admin panel qatlami
-
-- `src/api/admin.ts` — admin REST klienti: `useAdminQuery` (`GET /api/admin/*`), `useAdminMutation` (`POST /api/admin/*`, `:id` argumentdan), `fetchAdminSession` (`/api/admin/me`).
-- `src/components/RequireAdmin.tsx` — marshrut qo'riqchisi (sessiya yo'q bo'lsa `/admin/login`).
-- `src/layouts/AdminLayout.tsx` — yon menyu (6 bo'lim), `admin_sessions` cookie'si orqali chiqish.
-- Backend marshrutlari: `server/index.mjs` dagi `/api/admin/*` (`login`, `logout`, `me`, `stats`, `users`, `providers`, `hotels`, `restaurants`, `directions`, `payments/webhook`).
-
-
-## Architecture
+## 🏛 Ekotizim Arxitekturasi
 
 ```text
-React/Vite -> Express REST API -> SQLite
-Telegram   -> Express REST API -> SQLite
-Groq       <- Express REST API
+                         MILLYTOUR
+                             |
+          +------------------+------------------+
+          |                  |                  |
+          v                  v                  v
+     CUSTOMER WEB       PARTNER BOT       SUPER ADMIN
+   (millytour.uz)        Telegram      (admin.millytour.uz)
+       Vercel            Railway              Vercel
+          |                  |                  |
+          +------------------+------------------+
+                             |
+                             v
+                    MILLYTOUR BACKEND
+                  (api.millytour.uz)
+                         Railway
+                             |
+                     REST API / JSON
+                             |
+                             v
+                        PostgreSQL
+                         Railway
 ```
 
-The existing React routes and UI remain in `src/pages` and `src/components`. REST bindings live in `src/api/client.ts`; database initialization and server routes live in `server/index.mjs`.
+---
 
-`SiteLayout` sahifa almashganda skrolni boshqaradi: yangi sahifada yuqoriga qaytadi, `#bo'lim` havolalarida esa shu bo'limga suradi (footer'dagi yuridik havolalar shu bilan ishlaydi).
-# millytour
+## 📦 Loyiha Tuzilmasi (Monorepo Workspaces)
+
+```text
+millytour/
+├── frontend/                 # Customer Web ilovasi (React 19 + Vite + TailwindCSS)
+│   ├── src/
+│   │   ├── api/              # API mijozlari (client.ts)
+│   │   ├── components/       # Shadcn UI va sayt komponentlari
+│   │   ├── pages/            # Landing, Tours, Checkout, PaymentSuccess, Profile
+│   │   └── main.tsx          # Asosiy router va entrypoint
+│   ├── package.json
+│   └── vite.config.ts
+│
+├── admin/                    # Super Admin Paneli (React 19 + Vite + TailwindCSS)
+│   ├── src/
+│   │   ├── api/              # Admin REST klienti (admin.ts)
+│   │   ├── layouts/          # AdminLayout va navigatsiya
+│   │   ├── pages/            # Dashboard, Hamkorlar, Mehmonxonalar, To'lovlar, Audit
+│   │   └── main.tsx
+│   ├── package.json
+│   └── vite.config.ts
+│
+├── backend/                  # Yagona REST API va To'lovlar Serveri (Node.js + Express)
+│   ├── src/
+│   │   ├── config/           # Muhit o'zgaruvchilari
+│   │   ├── controllers/      # Auth, Tours, Orders, Payments, Partners, Admin
+│   │   ├── middleware/       # JWT Auth va RBAC (Customer, Partner, Admin)
+│   │   ├── routes/           # REST API marshrutlari
+│   │   ├── services/
+│   │   │   └── payment/      # Click, Payme, Card providerlar va PaymentService
+│   │   ├── db/               # PostgreSQL Prisma Client va Seed skripti
+│   │   └── server.ts         # Asosiy Express server
+│   ├── prisma/
+│   │   └── schema.prisma     # PostgreSQL to'liq sxemasi
+│   └── package.json
+│
+├── bot/                      # Hamkorlar Telegram Boti (Zero-dependency Telegram API)
+│   ├── src/
+│   │   └── bot.ts            # Hamkor arizasi, boshqaruv menyusi va buyurtma xabarlari
+│   └── package.json
+│
+├── package.json              # Root workspace konfiguratsiyasi
+└── README.md
+```
+
+---
+
+## 💳 To'lov Tizimi (Click, Payme, Visa/Mastercard)
+
+Platformaga to'liq xavfsiz va provider-agnostic to'lov arxitekturasi o'rnatilgan:
+
+1. **Click:** Click Up ilovasi va veb-kassa havolalari (MD5 imzo tekshiruvi).
+2. **Payme:** Paycom JSON-RPC protokoli va Base64 avtomatik to'lov URL yaratish.
+3. **Visa / Mastercard:** Xorijiy sayyohlar uchun xalqaro kartalar integratsiyasi.
+4. **Xavfsizlik & Idempotency:** 
+   - Summa hech qachon frontend'dan olinmaydi, to'g'ridan-to'g'ri buyurtma ma'lumotlaridan hisoblanadi.
+   - Takroriy webhook'lardan himoya (`provider + externalTransactionId` unikal kaliti orqali).
+   - To'lov tasdiqlangach (`PAID`), avtomatik ravishda hamkor ulushi (`partner_earnings`) hisoblanadi (platforma komissiyasi ayirilib).
+   - Super Admin panel orqali to'lovlarni to'liq qaytarish (Refund) imkoniyati.
+
+---
+
+## 🚀 Mahalliy Ishga Tushirish (Local Development)
+
+### 1. Bog'liqliklarni o'rnatish
+```bash
+npm install
+```
+
+### 2. Xizmatlarni ishga tushirish
+
+- **Frontend (Customer Web):**
+  ```bash
+  npm run dev:frontend
+  # Manzil: http://localhost:5173
+  ```
+
+- **Super Admin Paneli:**
+  ```bash
+  npm run dev:admin
+  # Manzil: http://localhost:3000
+  # Standart login: admin / admin123
+  ```
+
+- **Backend API:**
+  ```bash
+  npm run dev:backend
+  # Manzil: http://localhost:4000
+  # Health check: http://localhost:4000/api/health
+  ```
+
+- **Hamkor Telegram Boti:**
+  ```bash
+  npm run dev:bot
+  ```
+
+### 3. Testlarni tekshirish
+```bash
+node backend/tests/payment.test.mjs
+```
+
+---
+
+## 🌐 Production Deploy Yo'riqnomasi
+
+### 1. Backend & PostgreSQL (Railway)
+1. [Railway.app](https://railway.app) ga kiring va yangi loyiha oching.
+2. **New -> Database -> PostgreSQL** ni tanlang (Railway avtomatik `DATABASE_URL` beradi).
+3. **New -> GitHub Repo** qilib loyihani ulang.
+4. Sozlamalarda (Settings):
+   - **Root Directory:** `backend`
+   - **Build Command:** `npm run build`
+   - **Start Command:** `npm start`
+5. **Variables** bo'limiga quyidagilarni kiriting:
+   - `DATABASE_URL` (PostgreSQL havolasi)
+   - `JWT_SECRET` (Ixtiyoriy maxfiy kalit)
+   - `COOKIE_SECRET` (Maxfiy kalit)
+   - `CORS_ORIGIN=https://millytour.uz,https://admin.millytour.uz`
+   - Click va Payme ma'lumotlari (`CLICK_SERVICE_ID`, `PAYME_MERCHANT_ID` va h.k.)
+6. Railway loyihasiga `api.millytour.uz` custom domenini ulang.
+
+### 2. Frontend (Vercel)
+1. [Vercel.com](https://vercel.com) da yangi loyiha (Add New -> Project) oching.
+2. Repozitoriyni tanlang va sozlamalarni quyidagicha belgilang:
+   - **Root Directory:** `frontend`
+   - **Framework Preset:** Vite
+3. Environment Variables bo'limiga:
+   - `VITE_API_URL=https://api.millytour.uz`
+4. Loyihaning **Settings -> Domains** qismiga `millytour.uz` domenini qo'shing.
+
+### 3. Super Admin Paneli (Vercel)
+1. Vercel'da yana bitta yangi loyiha oching va xuddi shu repozitoriyni tanlang:
+   - **Root Directory:** `admin`
+   - **Framework Preset:** Vite
+2. Environment Variables:
+   - `VITE_API_URL=https://api.millytour.uz`
+3. Domains bo'limiga `admin.millytour.uz` domenini qo'shing.
+
+### 4. Partner Telegram Bot (Railway)
+1. Railway'da yangi xizmat (Service) qo'shing:
+   - **Root Directory:** `bot`
+   - **Start Command:** `node dist/bot.js`
+2. Variables bo'limiga:
+   - `API_URL=https://api.millytour.uz`
+   - `TELEGRAM_BOT_TOKEN=sizning_bot_tokeningiz`
+
+---
+
+## 🔗 Eskiz.uz DNS Sozlamalari
+
+Eskiz.uz shaxsiy kabinetingizdagi **DNS boshqaruvi** bo'limiga quyidagi yozuvlarni qo'shing:
+
+| Turi | Host / Subdomain | Qiymat (Value) | Maqsadi |
+| :--- | :--- | :--- | :--- |
+| **A** | `@` (yoki bo'sh) | `76.76.21.21` | `millytour.uz` (Frontend Vercel) |
+| **CNAME** | `www` | `cname.vercel-dns.com.` | `www.millytour.uz` yo'naltiruvchi |
+| **CNAME** | `admin` | `cname.vercel-dns.com.` | `admin.millytour.uz` (Admin Vercel) |
+| **CNAME** | `api` | `<railway-app-domen>.up.railway.app` | `api.millytour.uz` (Backend Railway) |
+
+---
+
+## 🛡 Xavfsizlik Qoidalari
+- Hech qanday `.env` fayllari yoki maxfiy kalitlar Git repozitoriyasiga kiritilmaydi.
+- Cookie-fayllar `HttpOnly`, `SameSite: Lax` va productionda `Secure` bayroqlari bilan himoyalangan.
+- Barcha nozik operatsiyalar (hamkor arizalarini tasdiqlash, to'lovlarni qaytarish) `audit_logs` jadvalida administrator ismi va IP manzili bilan qayd etiladi.

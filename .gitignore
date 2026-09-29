@@ -3,11 +3,15 @@
 .env.*
 !.env.example
 node_modules
+*/node_modules
 data/*.db
 dist
+*/dist
+.DS_Store
 
-# Vite dependency cache (13MB, qayta yaratiladi)
+# Vite dependency cache
 .vite
+*/.vite
 
-# Kilo agent tooling (skill fayllari loyiha kodi emas)
+# Kilo agent tooling
 .kilo/skills

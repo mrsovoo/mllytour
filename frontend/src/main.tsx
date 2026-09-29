@@ -41,43 +41,19 @@ const Partners = lazy(() => import("./pages/Partners.tsx"));
 const AuthPage = lazy(() => import("./pages/Auth.tsx"));
 const Dashboard = lazy(() => import("./pages/Dashboard.tsx"));
 const Partner = lazy(() => import("./pages/Partner.tsx"));
-const AdminLogin = lazy(() => import("./pages/AdminLogin.tsx"));
-const AdminDashboard = lazy(() => import("./pages/AdminDashboard.tsx"));
-const AdminPartners = lazy(() => import("./pages/AdminPartners.tsx"));
-const AdminHotels = lazy(() => import("./pages/AdminHotels.tsx"));
-const AdminRestaurants = lazy(() => import("./pages/AdminRestaurants.tsx"));
-const AdminUsers = lazy(() => import("./pages/AdminUsers.tsx"));
-const AdminSettings = lazy(() => import("./pages/AdminSettings.tsx"));
+const Checkout = lazy(() => import("./pages/Checkout.tsx"));
+const PaymentSuccess = lazy(() => import("./pages/PaymentSuccess.tsx"));
+const PaymentFailed = lazy(() => import("./pages/PaymentFailed.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
-
-/**
- * Admin panel marshrutlari.
- *
- * Bir xil ro'yxat ikki joyda ishlatiladi: `admin` panel rejimida (faqat shu
- * marshrutlar) va oddiy sayt ichida (`/admin` — footer'dagi havola uchun).
- */
-const ADMIN_ROUTES: RouteObject[] = [
-  { path: "/admin/login", element: <AdminLogin /> },
-  {
-    path: "/admin",
-    element: <RequireAdmin />,
-    children: [
-      { path: "dashboard", element: <AdminDashboard /> },
-      { path: "partners", element: <AdminPartners /> },
-      { path: "hotels", element: <AdminHotels /> },
-      { path: "restaurants", element: <AdminRestaurants /> },
-      { path: "users", element: <AdminUsers /> },
-      { path: "settings", element: <AdminSettings /> },
-      { index: true, element: <AdminDashboard /> },
-    ],
-  },
-];
 
 /** Oddiy (public) sayt marshrutlari — 404 alohida qo'shiladi. */
 const PUBLIC_ROUTES: RouteObject[] = [
   { path: "/", element: <Public><Landing /></Public> },
+  { path: "/tours", element: <Public><Packages /></Public> },
+  { path: "/tours/:slug", element: <Public><PackageDetail /></Public> },
   { path: "/paketlar", element: <Public><Packages /></Public> },
   { path: "/paketlar/:slug", element: <Public><PackageDetail /></Public> },
+  { path: "/destinations", element: <Public><Destinations /></Public> },
   { path: "/shaharlar", element: <Public><Destinations /></Public> },
   { path: "/takliflar", element: <Public><Deals /></Public> },
   { path: "/shaharlar/:slug", element: <Public><DestinationDetail /></Public> },
@@ -86,38 +62,28 @@ const PUBLIC_ROUTES: RouteObject[] = [
   { path: "/hunarmandlar", element: <Public><Marketplace /></Public> },
   { path: "/hamkorlar", element: <Public><Partners /></Public> },
   { path: "/hujjatlar", element: <Public><Documents /></Public> },
+  { path: "/checkout", element: <Public><Checkout /></Public> },
+  { path: "/checkout/:orderId", element: <Public><Checkout /></Public> },
+  { path: "/payment/success", element: <PaymentSuccess /> },
+  { path: "/payment/failed", element: <PaymentFailed /> },
   { path: "/auth", element: <AuthPage redirectAfterAuth="/dashboard" /> },
+  { path: "/login", element: <AuthPage redirectAfterAuth="/dashboard" /> },
+  { path: "/register", element: <AuthPage redirectAfterAuth="/dashboard" /> },
   { path: "/dashboard", element: <RequireAuth><Dashboard /></RequireAuth> },
-  { path: "/partner", element: <RequireAuth><Partner /></RequireAuth> },
+  { path: "/profile", element: <RequireAuth><Dashboard /></RequireAuth> },
+  { path: "/orders", element: <RequireAuth><Dashboard /></RequireAuth> },
+  { path: "/orders/:id", element: <RequireAuth><Dashboard /></RequireAuth> },
+  { path: "/trips", element: <RequireAuth><Dashboard /></RequireAuth> },
+  { path: "/memories", element: <RequireAuth><Dashboard /></RequireAuth> },
+  { path: "/reviews", element: <RequireAuth><Dashboard /></RequireAuth> },
+  { path: "/partner", element: <Public><Partner /></Public> },
 ];
 
-/**
- * Bitta router — panel rejimiga qarab marshrutlar to'plami tanlanadi.
- *
- * Muhim: har bir rejimda **bitta** `useRoutes` ishlatilishi kerak. Ilgari admin
- * marshrutlari alohida router sifatida yonma-yon qo'yilgan edi va shu yerdagi
- * `path="*"` barcha `/admin/...` manzillarni ushlab, panel ichidagi bo'limlar
- * ochilmasdi.
- */
 function AppRouter() {
-  const routes: RouteObject[] =
-    APP_PANEL === "admin"
-      ? [
-          { path: "/auth", element: <AuthPage redirectAfterAuth="/admin" /> },
-          ...ADMIN_ROUTES,
-          { path: "*", element: <Navigate to="/admin" replace /> },
-        ]
-      : APP_PANEL === "partner"
-        ? [
-            { path: "/auth", element: <AuthPage redirectAfterAuth="/partner" /> },
-            { path: "/partner", element: <RequireAuth><Partner /></RequireAuth> },
-            { path: "*", element: <Navigate to="/partner" replace /> },
-          ]
-        : [
-            ...PUBLIC_ROUTES,
-            ...ADMIN_ROUTES,
-            { path: "*", element: <Public><NotFound /></Public> },
-          ];
+  const routes: RouteObject[] = [
+    ...PUBLIC_ROUTES,
+    { path: "*", element: <Public><NotFound /></Public> },
+  ];
 
   return useRoutes(routes);
 }

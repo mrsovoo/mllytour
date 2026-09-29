@@ -1,0 +1,380 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  CUSTOMER
+  PARTNER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum PartnerStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum ServiceStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  REFUND_PENDING
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  PAID
+  FAILED
+  CANCELLED
+  REFUND_PENDING
+  REFUNDED
+}
+
+enum PaymentProvider {
+  CLICK
+  PAYME
+  CARD
+  TEST
+}
+
+enum TransactionType {
+  PAYMENT
+  REFUND
+  CANCEL
+}
+
+enum EarningStatus {
+  PENDING
+  AVAILABLE
+  PAID
+}
+
+model User {
+  id               String         @id @default(uuid())
+  email            String?        @unique
+  passwordHash     String?
+  name             String?
+  phone            String?
+  role             Role           @default(CUSTOMER)
+  country          String?
+  language         String         @default("uz")
+  currency         String         @default("UZS")
+  telegramId       BigInt?        @unique
+  telegramUsername String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  sessions         Session[]
+  orders           Order[]
+  reviews          Review[]
+  memories         Memory[]
+  notifications    Notification[]
+  partnerProfile   Partner?
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("sessions")
+}
+
+model Tour {
+  id             String      @id @default(uuid())
+  title          String
+  slug           String      @unique
+  description    String
+  location       String
+  durationDays   Int         @default(1)
+  basePriceUzs   Int
+  basePriceUsd   Int?
+  basePriceEur   Int?
+  category       String      @default("classic")
+  featured       Boolean     @default(false)
+  maxPeople      Int         @default(20)
+  isActive       Boolean     @default(true)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  images         TourImage[]
+  days           TourDay[]
+  orders         Order[]
+  reviews        Review[]
+
+  @@map("tours")
+}
+
+model TourImage {
+  id         String   @id @default(uuid())
+  tourId     String
+  tour       Tour     @relation(fields: [tourId], references: [id], onDelete: Cascade)
+  url        String
+  isPrimary  Boolean  @default(false)
+  orderIndex Int      @default(0)
+
+  @@map("tour_images")
+}
+
+model TourDay {
+  id          String @id @default(uuid())
+  tourId      String
+  tour        Tour   @relation(fields: [tourId], references: [id], onDelete: Cascade)
+  dayNumber   Int
+  title       String
+  description String
+
+  @@map("tour_days")
+}
+
+model Partner {
+  id               String         @id @default(uuid())
+  userId           String?        @unique
+  user             User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  telegramId       BigInt?        @unique
+  telegramUsername String?
+  businessName     String
+  contactName      String?
+  phone            String
+  direction        String         // guide, driver, hotel, restaurant, etc.
+  city             String
+  about            String?
+  status           PartnerStatus  @default(PENDING)
+  rejectionReason  String?
+  rating           Float          @default(0.0)
+  ratingCount      Int            @default(0)
+  completedOrders  Int            @default(0)
+  monthlyFee       Int            @default(0)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  services         PartnerService[]
+  orders           Order[]
+  reviews          Review[]
+  earnings         PartnerEarning[]
+
+  @@map("partners")
+}
+
+model PartnerService {
+  id          String        @id @default(uuid())
+  partnerId   String
+  partner     Partner       @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  name        String
+  description String
+  region      String
+  duration    String?
+  price       Int
+  currency    String        @default("UZS")
+  status      ServiceStatus @default(PENDING)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@map("partner_services")
+}
+
+model Order {
+  id            String         @id @default(uuid())
+  orderNumber   String         @unique
+  userId        String?
+  user          User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  tourId        String?
+  tour          Tour?          @relation(fields: [tourId], references: [id], onDelete: SetNull)
+  partnerId     String?
+  partner       Partner?       @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  peopleCount   Int            @default(1)
+  travelDate    String
+  totalAmount   Int
+  currency      String         @default("UZS")
+  status        OrderStatus    @default(PENDING_PAYMENT)
+  customerName  String
+  customerPhone String
+  customerEmail String?
+  notes         String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  payments      Payment[]
+  reviews       Review[]
+  earnings      PartnerEarning[]
+
+  @@map("orders")
+}
+
+model Payment {
+  id                 String           @id @default(uuid())
+  orderId            String
+  order              Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  userId             String?
+  provider           PaymentProvider
+  providerPaymentId  String?
+  amount             Int
+  currency           String           @default("UZS")
+  status             PaymentStatus    @default(PENDING)
+  paymentUrl         String?
+  createdAt          DateTime         @default(now())
+  paidAt             DateTime?
+  failedAt           DateTime?
+
+  transactions       PaymentTransaction[]
+  refunds            Refund[]
+
+  @@index([orderId])
+  @@map("payments")
+}
+
+model PaymentTransaction {
+  id                    String          @id @default(uuid())
+  paymentId             String
+  payment               Payment         @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  provider              PaymentProvider
+  externalTransactionId String
+  type                  TransactionType @default(PAYMENT)
+  amount                Int
+  currency              String          @default("UZS")
+  status                String
+  rawReference          String?
+  createdAt             DateTime        @default(now())
+
+  @@unique([provider, externalTransactionId])
+  @@map("payment_transactions")
+}
+
+model Refund {
+  id               String    @id @default(uuid())
+  paymentId        String
+  payment          Payment   @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  amount           Int
+  currency         String    @default("UZS")
+  reason           String
+  providerRefundId String?
+  status           String    @default("COMPLETED")
+  createdAt        DateTime  @default(now())
+  completedAt      DateTime?
+
+  @@map("refunds")
+}
+
+model PartnerEarning {
+  id               String        @id @default(uuid())
+  partnerId        String
+  partner          Partner       @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  orderId          String
+  order            Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  grossAmount      Int
+  commissionRate   Float         @default(10.0) // default 10%
+  commissionAmount Int
+  netAmount        Int
+  currency         String        @default("UZS")
+  status           EarningStatus @default(PENDING)
+  createdAt        DateTime      @default(now())
+  paidAt           DateTime?
+
+  @@map("partner_earnings")
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  orderId   String?
+  order     Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tourId    String?
+  tour      Tour?    @relation(fields: [tourId], references: [id], onDelete: SetNull)
+  partnerId String?
+  partner   Partner? @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  rating    Int      // 1 to 5
+  comment   String
+  status    String   @default("APPROVED")
+  createdAt DateTime @default(now())
+
+  @@map("reviews")
+}
+
+model Memory {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderId    String?
+  title      String
+  note       String?
+  imageUrl   String?
+  travelDate String?
+  createdAt  DateTime @default(now())
+
+  @@map("memories")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  partnerId String?
+  role      String   @default("CUSTOMER")
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  type      String   @default("GENERAL")
+  createdAt DateTime @default(now())
+
+  @@map("notifications")
+}
+
+model AdminUser {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  passwordHash String
+  fullName     String
+  role         Role     @default(ADMIN)
+  createdAt    DateTime @default(now())
+
+  @@map("admin_users")
+}
+
+model AuditLog {
+  id            String   @id @default(uuid())
+  adminId       String?
+  adminUsername String
+  action        String
+  targetType    String
+  targetId      String
+  details       String
+  ipAddress     String?
+  createdAt     DateTime @default(now())
+
+  @@map("audit_logs")
+}
+
+model Setting {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+
+  @@map("settings")
+}
