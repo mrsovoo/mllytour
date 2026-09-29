@@ -63,9 +63,13 @@ app.use(
   },
 );
 
+import { startTelegramBot } from "./services/bot.service.js";
+
 const server = app.listen(config.port, () => {
   console.log(`🚀 MillyTour Backend Server running on port ${config.port}`);
   console.log(`📡 Health Check: http://localhost:${config.port}/api/health`);
+  // Start embedded Telegram Bot service
+  startTelegramBot().catch((err) => console.error("[Telegram Bot startup error]:", err));
 });
 
 export default app;
