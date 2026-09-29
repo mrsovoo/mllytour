@@ -68,6 +68,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     } catch {
       // ignore
     }
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("millytour_admin_token");
+      localStorage.removeItem("millytour_admin_user");
+    }
     setAdminUser(null);
     toast.success("Chiqildi");
     navigate("/admin/login");
