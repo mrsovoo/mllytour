@@ -25,4 +25,7 @@ export const config = {
     apiKey: process.env.CARD_PAYMENT_API_KEY || "test_card_api_key",
   },
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || "",
+  telegramMainBotToken: process.env.TELEGRAM_MAIN_BOT_TOKEN || "",
+  partnerAppUrl: process.env.PARTNER_APP_URL || "https://millytour.uz/partner/app",
+  clientAppUrl: process.env.CLIENT_APP_URL || "https://millytour.uz",
 };

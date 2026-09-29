@@ -444,7 +444,7 @@ export function SiteHeader() {
                     />
                     <Button size="lg" variant="outline" asChild onClick={() => setOpen(false)}>
                       <a href={partnerBotLink()} target="_blank" rel="noreferrer">
-                        Hamkorlik — mtour_auth_bot
+                        Hamkorlik — millyauth_bot
                       </a>
                     </Button>
                   </>
