@@ -8,6 +8,7 @@
     "dev:admin": "node server/dev.mjs --panel=admin",
     "dev:partner": "node server/dev.mjs --panel=partner",
     "build": "tsc -b && vite build",
+    "start": "vite preview --host --port ${PORT:-5173}",
     "typecheck": "tsc -b",
     "lint": "eslint .",
     "format": "prettier --write .",
