@@ -91,47 +91,73 @@ export async function fetchAdminSession(): Promise<AdminSession | null> {
   }
 }
 
-/** Ro'yxat/statistika o'qish (`GET /api/admin/...`). */
+const queryCache = new Map<string, { data: unknown; timestamp: number }>();
+
+export function clearAdminCache() {
+  queryCache.clear();
+}
+
+/** Ro'yxat/statistika o'qish (`GET /api/admin/...`) — SWR kesh bilan tez ochiladi. */
 export function useAdminQuery<T>(
   path: string,
   params?: Record<string, unknown>,
   enabled = true,
 ) {
-  const [data, setData] = useState<T>();
-  const [isLoading, setIsLoading] = useState(enabled);
-  const [error, setError] = useState<string | null>(null);
   const query = queryString(params);
+  const cacheKey = `${path}${query}`;
+
+  const cached = queryCache.get(cacheKey);
+
+  const [data, setData] = useState<T | undefined>(() => (cached ? (cached.data as T) : undefined));
+  const [isLoading, setIsLoading] = useState(() => (enabled ? !cached : false));
+  const [error, setError] = useState<string | null>(null);
 
   const refetch = useCallback(async () => {
     setIsLoading(true);
     try {
-      setData(await adminFetch<T>(`${path}${query}`));
+      const result = await adminFetch<T>(`${path}${query}`);
+      queryCache.set(cacheKey, { data: result, timestamp: Date.now() });
+      setData(result);
       setError(null);
+      return result;
     } catch (requestError) {
       console.error(`[admin:${path}]`, requestError);
       setError(requestError instanceof Error ? requestError.message : "Xatolik yuz berdi");
+      throw requestError;
     } finally {
       setIsLoading(false);
     }
-  }, [path, query]);
+  }, [path, query, cacheKey]);
 
-  // Ma'lumotlar shu yerda yuklanadi: `setState` faqat promise callback'larida
-  // chaqiriladi (effekt tanasida sinxron `setState` qilishdan saqlanamiz).
   useEffect(() => {
     if (!enabled) {
       return;
     }
+
+    const currentCached = queryCache.get(cacheKey);
+    if (currentCached) {
+      setData(currentCached.data as T);
+      // Agar kesh 30 soniyadan yangi bo'lsa, qayta yuklash shart emas
+      if (Date.now() - currentCached.timestamp < 30_000) {
+        setIsLoading(false);
+        return;
+      }
+    } else {
+      setIsLoading(true);
+    }
+
     let active = true;
     adminFetch<T>(`${path}${query}`)
       .then((result) => {
         if (active) {
+          queryCache.set(cacheKey, { data: result, timestamp: Date.now() });
           setData(result);
           setError(null);
         }
       })
       .catch((requestError) => {
         console.error(`[admin:${path}]`, requestError);
-        if (active) {
+        if (active && !currentCached) {
           setError(requestError instanceof Error ? requestError.message : "Xatolik yuz berdi");
         }
       })
@@ -140,10 +166,11 @@ export function useAdminQuery<T>(
           setIsLoading(false);
         }
       });
+
     return () => {
       active = false;
     };
-  }, [path, query, enabled]);
+  }, [path, query, enabled, cacheKey]);
 
   return { data, isLoading, error, refetch };
 }
@@ -167,7 +194,9 @@ export function useAdminMutation<T = { ok?: boolean }>(path: string) {
   const mutate = useCallback(
     async (args: Record<string, unknown> = {}) => {
       const { url, body } = buildRequest(path, args);
-      return adminFetch<T>(url, { method: "POST", body: JSON.stringify(body) });
+      const res = await adminFetch<T>(url, { method: "POST", body: JSON.stringify(body) });
+      queryCache.clear();
+      return res;
     },
     [path],
   );

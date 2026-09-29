@@ -1,4 +1,3 @@
-import AdminLayout from "@/layouts/AdminLayout";
 import { Settings, ShieldCheck, Globe, Save, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,8 +21,7 @@ export default function AdminSettings() {
   };
 
   return (
-    <AdminLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold">Sozlamalar</h1>
           <p className="text-muted-foreground">Admin panel sozlamalari</p>
@@ -109,6 +107,5 @@ export default function AdminSettings() {
           </div>
         </div>
       </div>
-    </AdminLayout>
   );
 }

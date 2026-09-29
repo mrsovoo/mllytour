@@ -19,7 +19,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
-import AdminLayout from "@/layouts/AdminLayout";
 
 interface AdminUser {
   id: string;
@@ -62,8 +61,7 @@ export default function AdminUsers() {
   };
 
   return (
-    <AdminLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">Foydalanuvchilar</h1>
@@ -156,7 +154,6 @@ export default function AdminUsers() {
           </CardContent>
         </Card>
       </div>
-    </AdminLayout>
   );
 }
 

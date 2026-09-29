@@ -13,7 +13,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import AdminLayout from "@/layouts/AdminLayout";
 
 interface AuditLog {
   id: string;
@@ -39,8 +38,7 @@ export default function AdminAuditLogs() {
   );
 
   return (
-    <AdminLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
@@ -118,6 +116,5 @@ export default function AdminAuditLogs() {
           </CardContent>
         </Card>
       </div>
-    </AdminLayout>
   );
 }

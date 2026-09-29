@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link, useLocation } from "react-router";
+import { useNavigate, Link, useLocation, Outlet } from "react-router";
 import { toast } from "sonner";
 import {
   LayoutDashboard,
@@ -36,30 +36,62 @@ const NAV_ITEMS: NavItem[] = [
   { id: "settings", label: "Sozlamalar", icon: Settings, path: "/admin/settings" },
 ];
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export default function AdminLayout({ children }: { children?: React.ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const [adminUser, setAdminUser] = useState<{ username: string; role: string } | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [adminUser, setAdminUser] = useState<{ username: string; role: string } | null>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("millytour_admin_user");
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          // ignore
+        }
+      }
+    }
+    return null;
+  });
+  const [loading, setLoading] = useState(() => {
+    if (typeof window !== "undefined") {
+      const token = localStorage.getItem("millytour_admin_token");
+      return !token;
+    }
+    return true;
+  });
 
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const session = await fetchAdminSession();
+    const token = typeof window !== "undefined" ? localStorage.getItem("millytour_admin_token") : null;
+    if (!token) {
+      navigate("/admin/login", { replace: true });
+      return;
+    }
+
+    let active = true;
+    fetchAdminSession()
+      .then((session) => {
+        if (!active) return;
         if (!session) {
-          navigate("/admin/login");
-          return;
+          navigate("/admin/login", { replace: true });
+        } else {
+          setAdminUser(session);
         }
-        setAdminUser(session);
-      } catch {
-        navigate("/admin/login");
-      } finally {
-        setLoading(false);
-      }
+      })
+      .catch(() => {
+        if (!active) return;
+        navigate("/admin/login", { replace: true });
+      })
+      .finally(() => {
+        if (active) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
     };
-    checkAuth();
   }, [navigate]);
 
   const handleLogout = async () => {
@@ -77,7 +109,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     navigate("/admin/login");
   };
 
-  if (loading) {
+  if (loading && !adminUser) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
@@ -199,7 +231,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">
-          {children}
+          {children ?? <Outlet />}
         </main>
       </div>
     </div>

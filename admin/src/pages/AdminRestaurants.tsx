@@ -26,7 +26,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Card, CardContent } from "@/components/ui/card";
-import AdminLayout from "@/layouts/AdminLayout";
 
 interface Restaurant {
   _id: string;
@@ -68,8 +67,7 @@ export default function AdminRestaurants() {
   };
 
   return (
-    <AdminLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">Restoranlar</h1>
@@ -173,7 +171,6 @@ export default function AdminRestaurants() {
           </CardContent>
         </Card>
       </div>
-    </AdminLayout>
   );
 }
 

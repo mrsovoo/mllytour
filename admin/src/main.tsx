@@ -1,39 +1,29 @@
-import React, { StrictMode, Suspense, lazy } from "react";
+import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router";
 import { Toaster } from "@/components/ui/sonner";
+import AdminLayout from "./layouts/AdminLayout";
+import AdminLogin from "./pages/AdminLogin";
+import AdminDashboard from "./pages/AdminDashboard";
+import AdminPartners from "./pages/AdminPartners";
+import AdminHotels from "./pages/AdminHotels";
+import AdminRestaurants from "./pages/AdminRestaurants";
+import AdminUsers from "./pages/AdminUsers";
+import AdminPayments from "./pages/AdminPayments";
+import AdminAuditLogs from "./pages/AdminAuditLogs";
+import AdminSettings from "./pages/AdminSettings";
 import "./index.css";
-
-const AdminLogin = lazy(() => import("./pages/AdminLogin"));
-const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
-const AdminPartners = lazy(() => import("./pages/AdminPartners"));
-const AdminHotels = lazy(() => import("./pages/AdminHotels"));
-const AdminRestaurants = lazy(() => import("./pages/AdminRestaurants"));
-const AdminUsers = lazy(() => import("./pages/AdminUsers"));
-const AdminPayments = lazy(() => import("./pages/AdminPayments"));
-const AdminAuditLogs = lazy(() => import("./pages/AdminAuditLogs"));
-const AdminSettings = lazy(() => import("./pages/AdminSettings"));
-
-function LoadingFallback() {
-  return (
-    <div className="flex h-screen w-screen items-center justify-center bg-background">
-      <div className="flex flex-col items-center gap-3">
-        <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-        <p className="text-sm text-muted-foreground font-medium">Yuklanmoqda...</p>
-      </div>
-    </div>
-  );
-}
 
 function AdminApp() {
   return (
     <BrowserRouter>
-      <Suspense fallback={<LoadingFallback />}>
-        <Routes>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/login" element={<AdminLogin />} />
-          <Route path="/admin/login" element={<AdminLogin />} />
-          
+      <Routes>
+        <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
+        <Route path="/login" element={<AdminLogin />} />
+        <Route path="/admin/login" element={<AdminLogin />} />
+
+        {/* Persistent Shell Layout */}
+        <Route element={<AdminLayout />}>
           <Route path="/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
 
@@ -57,10 +47,10 @@ function AdminApp() {
 
           <Route path="/settings" element={<AdminSettings />} />
           <Route path="/admin/settings" element={<AdminSettings />} />
+        </Route>
 
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-      </Suspense>
+        <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
+      </Routes>
       <Toaster />
     </BrowserRouter>
   );

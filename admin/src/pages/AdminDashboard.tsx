@@ -12,7 +12,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import AdminLayout from "@/layouts/AdminLayout";
 
 type UserRole = "user" | "admin" | "owner";
 
@@ -55,8 +54,7 @@ export default function AdminDashboard() {
   const { data: providers } = useAdminQuery<AdminProvider[]>("/providers");
 
   return (
-    <AdminLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Boshqaruv paneli</h1>
@@ -176,7 +174,6 @@ export default function AdminDashboard() {
         </div>
       </div>
     </div>
-    </AdminLayout>
   );
 }
 
