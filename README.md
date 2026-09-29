@@ -134,3 +134,4 @@ Groq       <- Express REST API
 The existing React routes and UI remain in `src/pages` and `src/components`. REST bindings live in `src/api/client.ts`; database initialization and server routes live in `server/index.mjs`.
 
 `SiteLayout` sahifa almashganda skrolni boshqaradi: yangi sahifada yuqoriga qaytadi, `#bo'lim` havolalarida esa shu bo'limga suradi (footer'dagi yuridik havolalar shu bilan ishlaydi).
+# millytour
