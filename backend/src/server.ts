@@ -14,7 +14,11 @@ app.use(
       // Allow requests with no origin (like mobile apps, Postman or server-to-server)
       if (!origin) return callback(null, true);
       const isAllowed = config.corsOrigin.some(
-        (allowed) => origin === allowed || origin.endsWith(".millytour.uz") || origin.includes("localhost"),
+        (allowed) =>
+          origin === allowed ||
+          origin.endsWith(".millytour.uz") ||
+          origin.includes("localhost") ||
+          origin.endsWith(".vercel.app"),
       );
       if (isAllowed) {
         callback(null, true);

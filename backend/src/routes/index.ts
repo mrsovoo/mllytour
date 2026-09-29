@@ -28,6 +28,7 @@ import {
   getAdminAuditLogs,
 } from "../controllers/admin.controller.js";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
+import { restDispatcher } from "./rest-adapter.js";
 
 export const router = Router();
 
@@ -89,3 +90,7 @@ router.get("/admin/restaurants", requireAdmin, (req, res) => {
   req.query.direction = "restaurant";
   return getAdminPartners(req, res);
 });
+
+// REST Compatibility Layer for Frontend / Admin RPC hooks
+router.all("/rest/:module/:operation", restDispatcher);
+router.all("/rest/:module", restDispatcher);
