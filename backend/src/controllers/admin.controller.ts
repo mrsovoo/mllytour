@@ -8,7 +8,29 @@ export async function adminLogin(req: Request, res: Response) {
     const { username, password } = req.body;
     let admin = await prisma.adminUser.findUnique({ where: { username } });
 
-    // Agar baza bo'sh bo'lsa, birinchi default admin (admin / admin123) ni yaratamiz
+    const envAdminUser = process.env.ADMIN_USERNAME || "millytour-adm";
+    const envAdminPass = process.env.ADMIN_PASSWORD || "millytour-sovo";
+
+    // Agar Railway env'da ko'rsatilgan admin bo'lsa va hali bazada yo'q bo'lsa yoki paroli o'zgargan bo'lsa
+    if (username === envAdminUser && password === envAdminPass) {
+      if (!admin) {
+        admin = await prisma.adminUser.create({
+          data: {
+            username: envAdminUser,
+            passwordHash: hashPassword(envAdminPass),
+            fullName: "MillyTour Admin",
+            role: "SUPER_ADMIN",
+          },
+        });
+      } else if (!verifyPassword(password, admin.passwordHash)) {
+        admin = await prisma.adminUser.update({
+          where: { id: admin.id },
+          data: { passwordHash: hashPassword(envAdminPass) },
+        });
+      }
+    }
+
+    // Agar baza bo'sh bo'lsa, zaxira default admin (admin / admin123) ni yaratamiz
     if (!admin && username === "admin") {
       admin = await prisma.adminUser.create({
         data: {
