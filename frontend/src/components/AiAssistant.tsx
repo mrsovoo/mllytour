@@ -60,8 +60,8 @@ export function AiAssistant() {
   // Harakatga sezgir foydalanuvchilarda bezak animatsiyalari o'chiriladi.
   const reducedMotion = useReducedMotion();
   const { pathname, search } = useLocation();
-  const isMiniApp = new URLSearchParams(search).get("miniapp") === "1";
-  const hidden = ["/auth", "/admin", "/partner"].some((p) => pathname.startsWith(p));
+  const isMiniApp = new URLSearchParams(search).get("miniapp") === "1" || (typeof window !== "undefined" && Boolean((window as any).Telegram?.WebApp?.initData));
+  const hidden = isMiniApp || ["/auth", "/admin", "/partner"].some((p) => pathname.startsWith(p));
 
   // Eslatma (nudge) holati — 4 sekunddan keyin chiqadi, har 16 sekundda yangilanadi.
   const [nudge, setNudge] = useState(false);

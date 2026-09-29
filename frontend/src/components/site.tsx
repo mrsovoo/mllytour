@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, NavLink, useLocation } from "react-router";
+import { Link, NavLink, useLocation, useNavigate } from "react-router";
 import {
   BedDouble,
   ChevronDown,
+  ChevronLeft,
   Clock,
   Compass,
   Facebook,
@@ -51,6 +52,7 @@ import { MillytourLogo } from "@/components/brand";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import { AuthChoiceDialog } from "@/components/AuthChoiceDialog";
+import { useIsTelegramWebApp, getTelegramUser, triggerHaptic } from "@/lib/telegram";
 
 /* ---------------------------------- layout --------------------------------- */
 
@@ -288,6 +290,96 @@ function ToursNavDropdown() {
   );
 }
 
+export function MiniAppHeader() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const tgUser = getTelegramUser();
+  const { isAuthenticated, user } = useAuth();
+  const isSubPage = location.pathname !== "/";
+
+  const getPageTitle = () => {
+    const path = location.pathname;
+    if (path.startsWith("/paketlar") || path.startsWith("/tours")) return "Turlar va paketlar";
+    if (path.startsWith("/hunarmandlar") || path.startsWith("/marketplace")) return "Milliy bozor";
+    if (path.startsWith("/xizmatlar") || path.startsWith("/services")) return "Turizm xizmatlari";
+    if (path.startsWith("/takliflar") || path.startsWith("/deals")) return "Maxsus takliflar";
+    if (path.startsWith("/dashboard")) return "Shaxsiy kabinet";
+    if (path.startsWith("/auth")) return "Kirish";
+    if (path.startsWith("/checkout")) return "Rasmiylashtirish";
+    if (path.startsWith("/destinations") || path.startsWith("/shaharlar")) return "Shaharlar";
+    if (path.startsWith("/partner")) return "Hamkorlik";
+    return "MillyTour";
+  };
+
+  return (
+    <header className="sticky top-0 z-40 border-b border-border/70 bg-background/95 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
+      <div className="flex h-14 items-center justify-between px-3 sm:px-4">
+        <div className="flex items-center gap-2 min-w-0">
+          {isSubPage ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-9 rounded-full -ml-1 text-foreground shrink-0 active:scale-95"
+              onClick={() => {
+                triggerHaptic("light");
+                if (window.history.length > 1) {
+                  navigate(-1);
+                } else {
+                  navigate("/");
+                }
+              }}
+              aria-label="Orqaga"
+            >
+              <ChevronLeft className="size-5" />
+            </Button>
+          ) : (
+            <Link to="/" className="flex items-center gap-1.5 shrink-0" onClick={() => triggerHaptic("light")}>
+              <MillytourLogo />
+              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
+                App
+              </span>
+            </Link>
+          )}
+
+          {isSubPage && (
+            <h1 className="text-[15px] font-bold text-foreground truncate">
+              {getPageTitle()}
+            </h1>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <LangSwitcher />
+          {tgUser ? (
+            <div className="flex items-center gap-1.5 bg-muted/70 pl-2.5 pr-1 py-1 rounded-full text-xs font-medium">
+              <span className="truncate max-w-[75px] text-foreground font-semibold">{tgUser.first_name || "Mijoz"}</span>
+              <span className="grid size-6 place-items-center rounded-full bg-primary text-[11px] text-primary-foreground font-bold shadow-sm">
+                {(tgUser.first_name || "U")[0].toUpperCase()}
+              </span>
+            </div>
+          ) : isAuthenticated ? (
+            <Link
+              to={user?.role === "admin" ? "/admin" : "/dashboard"}
+              className="grid size-8 place-items-center rounded-full bg-primary/10 text-primary transition-transform active:scale-95"
+              onClick={() => triggerHaptic("light")}
+            >
+              <UserRound className="size-4" />
+            </Link>
+          ) : (
+            <AuthChoiceDialog
+              trigger={
+                <Button variant="outline" size="sm" className="h-8 px-2.5 text-xs font-semibold rounded-lg">
+                  Kirish
+                </Button>
+              }
+            />
+          )}
+        </div>
+      </div>
+    </header>
+  );
+}
+
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
   const { isAuthenticated, user } = useAuth();
@@ -459,21 +551,21 @@ export function SiteHeader() {
 }
 
 /**
- * Mobilda ilovaga o'xshash pastki navigatsiya (App Store/Play uchun
- * tayyorlanayotgan versiyada ham shu tuzilma ishlatiladi).
+ * Mobilda ilovaga o'xshash pastki navigatsiya.
+ * Telegram Mini App ichida doimiy ko'rinadi va haptic feedback bilan ishlaydi.
  */
-export function BottomNav() {
+export function BottomNav({ isMiniApp }: { isMiniApp?: boolean }) {
   const { isAuthenticated, user } = useAuth();
   const cabinet = user?.role === "admin" ? "/admin" : "/dashboard";
 
-  const items: { to: string; label: string; icon: React.ElementType; primary?: boolean }[] = [
+  const items: { to: string; label: string; icon: React.ElementType }[] = [
     { to: "/", label: "Asosiy", icon: Home },
-    { to: "/paketlar", label: "Paketlar", icon: Compass },
-    { to: "/xizmatlar", label: "Xizmatlar", icon: Sparkles, primary: true },
+    { to: "/paketlar", label: "Turlar", icon: Compass },
     { to: "/hunarmandlar", label: "Bozor", icon: Store },
+    { to: "/dashboard", label: "Buyurtmalar", icon: Ticket },
     {
       to: isAuthenticated ? cabinet : "/auth",
-      label: isAuthenticated ? "Kabinet" : "Kirish",
+      label: isAuthenticated ? "Profil" : "Kirish",
       icon: UserRound,
     },
   ];
@@ -481,17 +573,21 @@ export function BottomNav() {
   return (
     <nav
       aria-label="Ilova menyusi"
-      className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden"
+      className={cn(
+        "fixed inset-x-0 bottom-0 z-50 border-t border-border/80 bg-background/95 pb-[calc(0.4rem+env(safe-area-inset-bottom))] pt-1 backdrop-blur-xl shadow-lg",
+        !isMiniApp && "lg:hidden",
+      )}
     >
-      <div className="mx-auto flex max-w-lg items-stretch justify-between px-2">
+      <div className="mx-auto flex max-w-md items-center justify-around px-2">
         {items.map((item) => (
           <NavLink
             key={item.label}
             to={item.to}
+            onClick={() => triggerHaptic("light")}
             className={({ isActive }) =>
               cn(
-                "flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-semibold transition-colors",
-                isActive ? "text-primary" : "text-muted-foreground",
+                "flex flex-1 flex-col items-center gap-0.5 py-1.5 text-[10px] font-semibold transition-all select-none",
+                isActive ? "text-primary" : "text-muted-foreground hover:text-foreground",
               )
             }
           >
@@ -499,17 +595,15 @@ export function BottomNav() {
               <>
                 <span
                   className={cn(
-                    "grid size-9 place-items-center rounded-xl transition-colors",
-                    item.primary
-                      ? "bg-primary text-primary-foreground"
-                      : isActive
-                        ? "bg-primary/10"
-                        : "bg-transparent",
+                    "grid size-8 place-items-center rounded-xl transition-all duration-200",
+                    isActive
+                      ? "bg-primary text-primary-foreground shadow-sm scale-105"
+                      : "bg-transparent text-muted-foreground",
                   )}
                 >
-                  <item.icon className="size-5" aria-hidden="true" />
+                  <item.icon className="size-4.5" aria-hidden="true" />
                 </span>
-                {item.label}
+                <span className="leading-tight">{item.label}</span>
               </>
             )}
           </NavLink>
@@ -759,6 +853,34 @@ export function SiteFooter() {
 
 export function SiteLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const isMiniApp = useIsTelegramWebApp();
+
+  // Telegram WebApp Native Back Button integratsiyasi
+  useEffect(() => {
+    try {
+      const tg = (window as any).Telegram?.WebApp;
+      if (tg?.BackButton) {
+        if (location.pathname !== "/") {
+          tg.BackButton.show();
+          const handleBack = () => {
+            triggerHaptic("light");
+            if (window.history.length > 1) {
+              navigate(-1);
+            } else {
+              navigate("/");
+            }
+          };
+          tg.BackButton.onClick(handleBack);
+          return () => {
+            tg.BackButton.offClick(handleBack);
+          };
+        } else {
+          tg.BackButton.hide();
+        }
+      }
+    } catch {}
+  }, [location.pathname, navigate]);
 
   /*
    * Sahifa almashganda yuqoriga qaytish, `#bo'lim` havolalarida esa shu
@@ -785,14 +907,15 @@ export function SiteLayout({ children }: { children: React.ReactNode }) {
     raf = requestAnimationFrame(scrollToHash);
     return () => cancelAnimationFrame(raf);
   }, [location.pathname, location.hash]);
+
   return (
-    <div className="flex min-h-screen flex-col">
-      <SiteHeader />
-      <main key={location.pathname} className="page-enter flex-1 pb-20 lg:pb-0">
+    <div className={cn("flex min-h-screen flex-col bg-background", isMiniApp && "telegram-app-mode")}>
+      {isMiniApp ? <MiniAppHeader /> : <SiteHeader />}
+      <main key={location.pathname} className={cn("page-enter flex-1 pb-24", !isMiniApp && "lg:pb-0")}>
         {children}
       </main>
-      <SiteFooter />
-      <BottomNav />
+      {!isMiniApp && <SiteFooter />}
+      <BottomNav isMiniApp={isMiniApp} />
     </div>
   );
 }
