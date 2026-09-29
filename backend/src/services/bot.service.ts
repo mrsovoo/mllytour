@@ -4,8 +4,8 @@ import { prisma } from "../db/client.js";
 const partnerToken = config.telegramBotToken || process.env.TELEGRAM_BOT_TOKEN || "";
 const touristToken = config.telegramMainBotToken || process.env.TELEGRAM_MAIN_BOT_TOKEN || "";
 
-const partnerAppUrl = config.partnerAppUrl || process.env.PARTNER_APP_URL || "https://millytour.vercel.app/partner/app";
-const clientAppUrl = config.clientAppUrl || process.env.CLIENT_APP_URL || "https://millytour.vercel.app";
+const partnerAppUrl = config.partnerAppUrl || process.env.PARTNER_APP_URL || "https://millytour-frontend-sovos-projects.vercel.app/partner/app";
+const clientAppUrl = config.clientAppUrl || process.env.CLIENT_APP_URL || "https://millytour-frontend-sovos-projects.vercel.app";
 
 const DIRECTIONS: Record<string, string> = {
   guide: "🧑‍🏫 Gid / Ekskursovod",

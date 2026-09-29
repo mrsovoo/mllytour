@@ -26,6 +26,6 @@ export const config = {
   },
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || "",
   telegramMainBotToken: process.env.TELEGRAM_MAIN_BOT_TOKEN || "",
-  partnerAppUrl: process.env.PARTNER_APP_URL || "https://millytour.vercel.app/partner/app",
-  clientAppUrl: process.env.CLIENT_APP_URL || "https://millytour.vercel.app",
+  partnerAppUrl: process.env.PARTNER_APP_URL || "https://millytour-frontend-sovos-projects.vercel.app/partner/app",
+  clientAppUrl: process.env.CLIENT_APP_URL || "https://millytour-frontend-sovos-projects.vercel.app",
 };
