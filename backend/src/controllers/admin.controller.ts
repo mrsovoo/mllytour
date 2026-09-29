@@ -5,11 +5,12 @@ import { successResponse, errorResponse } from "../utils/response.js";
 
 export async function adminLogin(req: Request, res: Response) {
   try {
-    const { username, password } = req.body;
+    const username = String(req.body.username || "").trim();
+    const password = String(req.body.password || "").trim();
     let admin = await prisma.adminUser.findUnique({ where: { username } });
 
-    const envAdminUser = process.env.ADMIN_USERNAME || "millytour-adm";
-    const envAdminPass = process.env.ADMIN_PASSWORD || "millytour-sovo";
+    const envAdminUser = (process.env.ADMIN_USERNAME || "millytour-adm").trim();
+    const envAdminPass = (process.env.ADMIN_PASSWORD || "millytour-sovo").trim();
 
     // Railway env'da ko'rsatilgan admin credentials bilan tekshirish va sinxronlashtirish
     if (username === envAdminUser && password === envAdminPass) {
@@ -43,7 +44,7 @@ export async function adminLogin(req: Request, res: Response) {
     res.cookie("millytour_admin_session", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 

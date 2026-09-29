@@ -38,15 +38,29 @@ function queryString(params?: Record<string, unknown>) {
 }
 
 export async function adminFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const headers = init?.body ? { "Content-Type": "application/json" } : undefined;
+  const token = typeof window !== "undefined" ? localStorage.getItem("millytour_admin_token") : null;
+  const headers: Record<string, string> = {
+    ...(init?.headers as Record<string, string> || {}),
+  };
+  if (init?.body) {
+    headers["Content-Type"] = "application/json";
+  }
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
   const response = await fetch(`${API_BASE}/api/admin${path}`, {
     credentials: "include",
     ...init,
     headers,
   });
-  const payload = (await response.json().catch(() => ({}))) as Envelope<T>;
+  const payload = (await response.json().catch(() => ({}))) as any;
   if (!response.ok) {
-    throw new Error(payload.error ?? `Admin API xatosi: ${response.status}`);
+    const errorMsg =
+      typeof payload.error === "object"
+        ? payload.error?.message
+        : payload.error || payload.message;
+    throw new Error(errorMsg ?? `Admin API xatosi: ${response.status}`);
   }
   return (payload.data ?? payload) as T;
 }
@@ -54,14 +68,24 @@ export async function adminFetch<T>(path: string, init?: RequestInit): Promise<T
 /** Admin sessiyasi (`GET /api/admin/me`) — yo'q bo'lsa `null`. */
 export async function fetchAdminSession(): Promise<AdminSession | null> {
   try {
-    const response = await fetch(`${API_BASE}/api/admin/me`, { credentials: "include" });
+    const token = typeof window !== "undefined" ? localStorage.getItem("millytour_admin_token") : null;
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    const response = await fetch(`${API_BASE}/api/admin/me`, {
+      credentials: "include",
+      headers,
+    });
     if (!response.ok) {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("millytour_admin_token");
+        localStorage.removeItem("millytour_admin_user");
+      }
       return null;
     }
-    const payload = (await response.json().catch(() => ({}))) as {
-      admin?: AdminSession | null;
-    };
-    return payload.admin ?? null;
+    const payload = (await response.json().catch(() => ({}))) as any;
+    return payload.data?.admin ?? payload.admin ?? null;
   } catch {
     return null;
   }

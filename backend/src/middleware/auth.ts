@@ -38,7 +38,12 @@ export function authMiddleware(req: Request, _res: Response, next: NextFunction)
     }
   }
 
-  const adminToken = req.cookies?.millytour_admin_session;
+  const adminToken =
+    req.cookies?.millytour_admin_session ||
+    (req.headers.authorization?.startsWith("Bearer ")
+      ? req.headers.authorization.substring(7)
+      : undefined);
+
   if (adminToken) {
     const payload = verifyToken<AdminUserSession>(adminToken);
     if (payload) {

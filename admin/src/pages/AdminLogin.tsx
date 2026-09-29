@@ -31,7 +31,18 @@ export default function AdminLogin() {
     setIsLoading(true);
     setError(null);
     try {
-      await login({ username, password });
+      const res = (await login({
+        username: username.trim(),
+        password: password.trim(),
+      })) as any;
+
+      if (res?.token) {
+        localStorage.setItem("millytour_admin_token", res.token);
+      }
+      if (res?.admin) {
+        localStorage.setItem("millytour_admin_user", JSON.stringify(res.admin));
+      }
+
       navigate("/admin/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Kirish amalga oshmadi");
