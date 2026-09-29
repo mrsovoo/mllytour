@@ -15,3 +15,7 @@ dist
 
 # Kilo agent tooling
 .kilo/skills
+
+# Railway & Vercel
+.railway
+.vercel
