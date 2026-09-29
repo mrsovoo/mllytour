@@ -111,7 +111,7 @@ export default function AdminLogin() {
                       name="username"
                       type="text"
                       required
-                      placeholder="admin"
+                      placeholder="Foydalanuvchi nomi"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       disabled={isLoading}
@@ -150,10 +150,6 @@ export default function AdminLogin() {
                   )}
                 </Button>
               </form>
-
-              <p className="text-center text-xs text-muted-foreground">
-                Amaliy test uchun: <code className="bg-muted px-1.5 py-0.5 rounded">admin</code> / <code className="bg-muted px-1.5 py-0.5 rounded">admin123</code>
-              </p>
             </CardContent>
           </Card>
         </div>

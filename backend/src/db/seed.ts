@@ -15,7 +15,7 @@ export async function seed() {
     },
   });
 
-  // 2. Default Super Admin
+  // 2. Default Super Admin from Environment Variables
   const envAdminUser = process.env.ADMIN_USERNAME || "millytour-adm";
   const envAdminPass = process.env.ADMIN_PASSWORD || "millytour-sovo";
   
@@ -27,19 +27,7 @@ export async function seed() {
     create: {
       username: envAdminUser,
       passwordHash: hashPassword(envAdminPass),
-      fullName: "MillyTour Admin",
-      role: "SUPER_ADMIN",
-    },
-  });
-
-  const adminPassword = hashPassword("admin123");
-  await prisma.adminUser.upsert({
-    where: { username: "admin" },
-    update: {},
-    create: {
-      username: "admin",
-      passwordHash: adminPassword,
-      fullName: "Super Admin",
+      fullName: "MillyTour Bosh Administrator",
       role: "SUPER_ADMIN",
     },
   });

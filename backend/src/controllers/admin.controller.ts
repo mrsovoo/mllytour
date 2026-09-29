@@ -11,14 +11,14 @@ export async function adminLogin(req: Request, res: Response) {
     const envAdminUser = process.env.ADMIN_USERNAME || "millytour-adm";
     const envAdminPass = process.env.ADMIN_PASSWORD || "millytour-sovo";
 
-    // Agar Railway env'da ko'rsatilgan admin bo'lsa va hali bazada yo'q bo'lsa yoki paroli o'zgargan bo'lsa
+    // Railway env'da ko'rsatilgan admin credentials bilan tekshirish va sinxronlashtirish
     if (username === envAdminUser && password === envAdminPass) {
       if (!admin) {
         admin = await prisma.adminUser.create({
           data: {
             username: envAdminUser,
             passwordHash: hashPassword(envAdminPass),
-            fullName: "MillyTour Admin",
+            fullName: "MillyTour Bosh Administrator",
             role: "SUPER_ADMIN",
           },
         });
@@ -28,18 +28,6 @@ export async function adminLogin(req: Request, res: Response) {
           data: { passwordHash: hashPassword(envAdminPass) },
         });
       }
-    }
-
-    // Agar baza bo'sh bo'lsa, zaxira default admin (admin / admin123) ni yaratamiz
-    if (!admin && username === "admin") {
-      admin = await prisma.adminUser.create({
-        data: {
-          username: "admin",
-          passwordHash: hashPassword("admin123"),
-          fullName: "Bosh Administrator",
-          role: "SUPER_ADMIN",
-        },
-      });
     }
 
     if (!admin || !verifyPassword(password, admin.passwordHash)) {

@@ -9,8 +9,8 @@ import { toast } from "sonner";
 
 export default function AdminSettings() {
   const [form, setForm] = useState({
-    adminUsername: "admin",
-    adminPassword: "admin123",
+    adminUsername: "",
+    adminPassword: "",
     siteName: "Millytour",
     siteEmail: "info@millytour.uz",
     timezone: "Asia/Tashkent",
@@ -103,7 +103,7 @@ export default function AdminSettings() {
 
           <div className="flex gap-3">
             <Button onClick={handleSave}><Save className="size-4 mr-2" /> Saqlash</Button>
-            <Button variant="outline" onClick={() => { setForm({ adminUsername: "admin", adminPassword: "admin123", siteName: "Millytour", siteEmail: "info@millytour.uz", timezone: "Asia/Tashkent", language: "uz" }); toast.info("Qayta yuklandi"); }}>
+            <Button variant="outline" onClick={() => { setForm({ adminUsername: "", adminPassword: "", siteName: "Millytour", siteEmail: "info@millytour.uz", timezone: "Asia/Tashkent", language: "uz" }); toast.info("Qayta yuklandi"); }}>
               <RotateCcw className="size-4 mr-2" /> Qayta yuklash
             </Button>
           </div>
