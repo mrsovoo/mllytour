@@ -1,86 +1,228 @@
-# MillyTour Loyiha Arxitekturasi va Tuzilishi
+# MILLYTOUR — MVP 1.0 TO'LIQ ARXITEKTURA VA QO'LLANMA
 
-Ushbu hujjat **MillyTour** loyihasining qanday ishlashi, texnologiyalar steki va frontend-backend arxitekturasini tushuntiradi. Hozirda loyiha bitta umumiy repozitoriy (monolit) sifatida shakllantirilgan, lekin Vercel (Frontend) va Railway (Backend) da alohida deploy qilinishi uchun ikki qismga — `frontend` va `backend` papkalariga ajratiladi.
-
-## Texnologiyalar steki
-
-### Frontend (Mijoz, Hamkor va Admin panellari)
-- **Framework:** React 19 + Vite (TypeScript bilan)
-- **UI Kutubxonalari:** TailwindCSS, Shadcn UI (Radix UI)
-- **Routing:** React Router v7
-- **Animatsiyalar:** Framer Motion
-- **Holatni Boshqarish:** Custom hook-lar (Kichik holatlar uchun useState, API so'rovlar uchun custom fetch hooklar `useAdminQuery`, `useRestQuery`)
-- **Deploy:** Vercel
-
-### Backend (API va Ma'lumotlar bazasi)
-- **Framework:** Express.js + Hono (API marshrutlari uchun)
-- **Ma'lumotlar Bazasi:** SQLite (Hozircha. Railway'da PostgresSQL'ga o'tish tavsiya etiladi)
-- **Autentifikatsiya:** JSON Web Token (JWT) + Cookie parser, shuningdek `@oslojs/crypto`
-- **Deploy:** Railway
+Ushbu hujjat **MillyTour MVP 1.0** loyihasining to'liq arxitekturasi, ishlash mexanizmi, rollar taqsimoti, to'lov tizimlari va deploy qilish bo'yicha master qo'llanmadir.
 
 ---
 
-## Loyihani Ikki Qismga (Frontend va Backend) Ajratish Tuzilishi
+## 1. YAKUNIY ARXITEKTURA VA TIZIM MODELI
 
-Loyiha quyidagi tuzilishga o'tkazilishi tavsiya etiladi (Frontend va Backend alohida deploy qilinishi uchun):
+MillyTour platformasi monolit frontend emas, balki aniq chegaralangan 4 ta mustaqil qismdan (monorepo workspaces) tashkil topgan:
 
 ```text
-millytour/
-├── frontend/                 # Vercel'ga yuklanuvchi qism
-│   ├── public/               # Statik fayllar (rasmlar, ikonlar)
-│   ├── src/                  # React kodlari
-│   │   ├── api/              # API bilan ishlash uchun xizmatlar (admin.ts, client.ts)
-│   │   ├── assets/           # CSS va boshqa resurslar
-│   │   ├── components/       # Umumiy komponentlar (Shadcn UI, navigatsiya)
-│   │   ├── data/             # Mock ma'lumotlar va konstantalar
-│   │   ├── hooks/            # Custom React hook-lar
-│   │   ├── layouts/          # Sahifa layout'lari (AdminLayout, PublicLayout)
-│   │   ├── lib/              # Yordamchi funksiyalar (utils.ts)
-│   │   ├── pages/            # Asosiy sahifalar (AdminDashboard, Landing va h.k.)
-│   │   ├── types/            # TypeScript turlari
-│   │   ├── index.css         # Asosiy Tailwind stillari
-│   │   └── main.tsx          # React loyihani ishga tushiruvchi asosiy fayl
-│   ├── package.json          # Frontend dastur paketlari (React, Tailwind, Vite)
-│   ├── vite.config.ts        # Vite sozlamalari
-│   └── index.html            # Asosiy HTML fayl
-│
-├── backend/                  # Railway'ga yuklanuvchi qism
-│   ├── server/               # Express/Hono backend kodlari
-│   │   ├── index.mjs         # Asosiy serverni ishga tushirish
-│   │   ├── dev.mjs           # Mahalliy serverni yurgizish
-│   │   └── db/               # SQLite bazasi yoki Mongoose modellar (agar bo'lsa)
-│   ├── package.json          # Backend paketlari (Express, Hono, sqlite3, cors)
-│   └── .env                  # Backend o'zgaruvchilari (DATABASE_URL, JWT_SECRET, CORS_ORIGIN)
-│
-├── README.md                 # Loyiha haqida umumiy ma'lumot
-└── .gitignore                # Gitga kirmaydigan fayllar (.env, node_modules)
+                                  MILLYTOUR
+                                      │
+         ┌────────────────────────────┼───────────────────────────┐
+         │                            │                           │
+         ▼                            ▼                           ▼
+   ODDIY TURIST              XIZMAT KO'RSATUVCHI             SUPER ADMIN
+    (Customer)                    (Partner)                  (Management)
+         │                            │                           │
+  millytour.uz               Telegram Partner Bot           admin.millytour.uz
+  (Vercel SPA)                 + [🚀 Launch App]               (Vercel SPA)
+         │                            │                           │
+         │                   Partner Mini App                     │
+         │               (millytour.uz/partner/app)               │
+         │                            │                           │
+         └────────────────────────────┼───────────────────────────┘
+                                      │
+                                      ▼
+                                MILLYTOUR API
+                             (api.millytour.uz)
+                              Node.js / Express
+                                      │
+               ┌──────────────────────┴──────────────────────┐
+               ▼                                             ▼
+       PostgreSQL (Prisma)                        PAYMENT PROVIDERS
+    - Users (RBAC)                                - CLICK (Uzbekistan)
+    - Partners & Services                         - PAYME (Uzbekistan)
+    - Tours & Bookings                            - CARD (Visa/Mastercard)
+    - Payments & Refunds
+    - Partner Earnings
 ```
 
 ---
 
-## Tizim Qanday Ishlaydi?
+## 2. MONOREPO STRUKTURASI
 
-### 1. Ma'lumotlar Oqimi (Data Flow)
-1. Foydalanuvchi brauzer orqali Vercel'da turgan Frontend'ga (`millytour.uz`) kiradi.
-2. Frontend (React) Vercel orqali HTML, CSS va JS fayllarni foydalanuvchiga jo'natadi.
-3. Agar foydalanuvchiga ma'lumot (masalan, turlar, hamkorlar ro'yxati) kerak bo'lsa, React ilovasi API so'rov yuboradi.
-4. API so'rovi Frontend'dagi `VITE_API_URL` manzili (masalan, `https://api.millytour.uz`) orqali Railway'da turgan Backend serverga boradi.
-5. Railway'dagi Express/Hono server bazaga so'rov yuborib ma'lumotni JSON formatida frontend'ga qaytaradi.
+Loyiha quyidagi workspaces tartibida tashkil qilingan:
 
-### 2. Autentifikatsiya (Login/Parol)
-- Backend **JWT (JSON Web Token)** va **Cookie**-lardan foydalanadi.
-- Admin yoki Hamkor saytga kirganda backend unga yashirin token (cookie) jo'natadi.
-- Frontend kelgusi har bir so'rovda bu cookie'ni avtomatik qo'shib jo'natadi. Shuning uchun Frontend'da API so'rovlarda `credentials: "include"` ishlatilgan.
-- CORS (Cross-Origin Resource Sharing) sozlamalari Backend'da juda muhim! Backend Vercel domeningizdan kelayotgan so'rovlarga va cookie yuborishga ruxsat berishi uchun `.env` faylida to'g'ri `CORS_ORIGIN` ko'rsatilgan bo'lishi kerak.
-
-### 3. Vercel (Frontend) va Railway (Backend) Deploy Tizimi
-- **Vercel:** Vercel sozlamalarida "Root Directory" ni `frontend` deb belgilashingiz kerak. Vercel faqat React/Vite kodini olib, `npm run build` qiladi va statik saytni tarqatadi.
-- **Railway:** Railway sozlamalarida "Root Directory" ni `backend` deb belgilashingiz kerak. Railway Express serverini ishga tushirish uchun `npm start` (bu `node server/index.mjs` ni ishlatadi) buyrug'idan foydalanadi.
+```text
+millytour/
+├── frontend/               # Customer Web + Telegram Mini App (Vercel)
+│   ├── src/
+│   │   ├── pages/
+│   │   │   ├── Landing.tsx          # Asosiy sayt (millytour.uz)
+│   │   │   ├── Packages.tsx         # Turlar katalogi
+│   │   │   ├── PackageDetail.tsx    # Tur sahifasi va bron qilish
+│   │   │   ├── Checkout.tsx         # To'lov sahifasi (/checkout/:orderId)
+│   │   │   ├── PaymentSuccess.tsx   # Muvaffaqiyatli to'lov natijasi
+│   │   │   ├── PaymentFailed.tsx    # Xatolik natijasi
+│   │   │   ├── PartnerMiniApp.tsx   # Telegram Partner Mini App (/partner/app)
+│   │   │   └── ...
+│   │   ├── components/              # UI komponentlar (Tailwind, Lucide)
+│   │   └── api/                     # Backend API bilan aloqa
+│   ├── package.json
+│   └── vite.config.ts
+│
+├── admin/                  # Super Admin Dashboard (admin.millytour.uz)
+│   ├── src/
+│   │   ├── pages/
+│   │   │   ├── AdminDashboard.tsx   # Asosiy statistika
+│   │   │   ├── AdminPartners.tsx    # Hamkor arizalarini ko'rib chiqish/tasdiqlash
+│   │   │   ├── AdminHotels.tsx      # Mehmonxonalar boshqaruvi
+│   │   │   ├── AdminRestaurants.tsx # Restoranlar boshqaruvi
+│   │   │   ├── AdminUsers.tsx       # Foydalanuvchilar va rollar
+│   │   │   ├── AdminPayments.tsx    # To'lovlar, refundlar va daromadlar nazorati
+│   │   │   ├── AdminAuditLogs.tsx   # Tizim xavfsizlik audit loglari
+│   │   │   └── AdminSettings.tsx    # Platforma komissiyalari va sozlamalar
+│   ├── package.json
+│   └── vite.config.ts
+│
+├── backend/                # Production REST API (Railway / Docker)
+│   ├── prisma/
+│   │   └── schema.prisma   # PostgreSQL ma'lumotlar sxemasi (18 ta model)
+│   ├── src/
+│   │   ├── config/         # Muhit o'zgaruvchilari (env)
+│   │   ├── controllers/    # API kontrollerlari (auth, tour, order, partner, payment)
+│   │   ├── middleware/     # RBAC (authMiddleware, requireRole)
+│   │   ├── services/
+│   │   │   └── payment/    # Provider-agnostic to'lov xizmatlari
+│   │   │       ├── click.provider.ts   # Click Complete/Prepare MD5 hash
+│   │   │       ├── payme.provider.ts   # Payme JSON-RPC va Base64 URL
+│   │   │       ├── card.provider.ts    # Visa/Mastercard integratsiyasi
+│   │   │       └── payment.service.ts  # Idempotency, hisob-kitob, refunds
+│   │   ├── utils/          # HMAC-SHA256 Telegram validation, JWT, Argon2/Bcrypt
+│   │   └── server.ts       # Express server va marshrutlar
+│   ├── tests/              # Unit va integratsion testlar
+│   └── package.json
+│
+├── bot/                    # Telegram Hamkor Boti (Railway worker)
+│   ├── src/
+│   │   └── bot.ts          # Telegram Bot API (Mini App Launch Web_app knopkasi)
+│   └── package.json
+│
+├── package.json            # Monorepo root workspaces
+└── loyiha.md               # Ushbu arxitektura hujjati
+```
 
 ---
 
-## O'tish Bo'yicha Asosiy Tavsiyalar
-- **Ma'lumotlar bazasi:** Siz hozirda SQLite'dan foydalanyapsiz, u bitta fayl sifatida saqlanadi (`.kilo/` yoki shunga o'xshash). Railway'da har safar server yangilanganda bu fayl o'chib ketadi (chunki ephemeral file system). Shuning uchun Railway'da ichki **PostgresSQL** bepul xizmatidan foydalanishga o'tish tavsiya etiladi.
-- **Muhit o'zgaruvchilari (.env):** 
-  - Frontend'da: `.env` faylida `VITE_API_URL=https://<railway-api-domeningiz>` (misol: api.millytour.uz) qilib sozlang.
-  - Backend'da: Railway Variables qismida `CORS_ORIGIN=https://millytour.uz` ni sozlash yodingizdan chiqmasin.
+## 3. FOYDALANUVCHILAR ROLLARI VA OQIMLARI
+
+### 3.1. Oddiy Turist (Customer)
+1. **Kirish:** `millytour.uz` saytiga brauzer orqali yoki Telegram Mini App orqali kiradi.
+2. **Tanlov:** Turlar, yo'nalishlar, mehmonxonalar va xizmatlarni ko'rib chiqadi.
+3. **Bron qilish:** Tur sahifasidan kerakli sana va sayohatchilar sonini kiritib `Bron qilish` tugmasini bosadi.
+4. **Checkout:** `/checkout/:orderId` sahifasida to'lov usulini tanlaydi:
+   - Click (O'zbekiston so'mi)
+   - Payme (O'zbekiston so'mi)
+   - Xalqaro karta (Visa/Mastercard)
+5. **To'lov tasdiqlash:** Foydalanuvchi to'lov provayderi sahifasiga yo'naltiriladi. To'lov amalga oshirilgach, provayder to'g'ridan-to'g'ri Backend Webhook'ga xabar yuboradi. Backend tekshirib, statusni `PAID` va buyurtmani `CONFIRMED` qiladi.
+
+### 3.2. Xizmat Ko'rsatuvchi (Partner)
+Gidlar, haydovchilar, mehmonxonalar, restoranlar, turoperatorlar:
+1. **Telegram Bot:** Telegramda `@MillyTourPartnerBot`ga kiradi va `/start` bosadi.
+2. **Mini App ochish:** Botdagi `[🚀 Launch App (Hamkor Portali)]` tugmasini bosadi.
+3. **Avtorizatsiya:** Telegram WebApp `initData` orqali backendda kriptografik (HMAC-SHA256) usulda xavfsiz avtorizatsiyadan o'tadi.
+4. **Onboarding:** Ariza formasini Mini App orqali to'ldiradi (Faoliyat yo'nalishi, shahar, xizmat narxlari, hujjatlar).
+5. **Dashboard:** Ariza tasdiqlangach, xizmatlarini boshqarish, yangi buyurtmalarni qabul qilish va daromadlarini monitoring qilish imkoniyatiga ega bo'ladi.
+
+### 3.3. Super Admin
+1. **Kirish:** `admin.millytour.uz` orqali xavfsiz tizimga kiradi.
+2. **Hamkorlarni tasdiqlash:** Yangi kelib tushgan arizalarni tekshiradi, tasdiqlaydi (`APPROVED`) yoki rad etadi (`REJECTED`).
+3. **Moliya:** Click, Payme va Kartalar bo'yicha to'lovlar tarixini, provayder tranzaksiyalarini va platformaning sof komissiya daromadini real vaqtda ko'radi.
+4. **Qaytarish (Refund):** Zarur hollarda bitta tugma orqali to'lovni bekor qiladi va mablag'ni mijozga qaytaradi.
+
+---
+
+## 4. XAVFSIZLIK VA TO'LOV ARXITEKTURASI
+
+- **Frontendga ishonmaslik:** To'lov summasi hech qachon mijoz frontendidan olinmaydi. Barcha summa backend ma'lumotlar bazasidagi `Order.totalPrice` bo'yicha qat'iy hisoblanadi.
+- **Idempotency:** Webhooklar orqali bir xil to'lov bir necha bor kelganda ham mablag' va statuslar takroran oshib ketmaydi.
+- **Kriptografik Tekshiruv:**
+  - Click: MD5 orqali `click_trans_id`, `service_id`, `secret_key`, `merchant_trans_id`, `amount`, `action`, `sign_time` imzosi tekshiriladi.
+  - Payme: HTTP Basic Auth orqali `Paycom` kaliti va JSON-RPC usulida tranzaksiya holati tekshiriladi.
+  - Telegram: Bot token orqali yaratilgan secret key bilan HMAC-SHA256 heshi tekshiriladi.
+
+---
+
+## 5. DEPLOY QILISH VA SOZLASH (PRODUCTION)
+
+### 5.1. Railway (Backend API va PostgreSQL)
+1. Railway loyihasida **PostgreSQL** qo'shing.
+2. Railway'da yangi xizmat ochib, GitHub repozitoriyangizni ulang:
+   - **Root Directory:** `backend`
+   - **Build Command:** `npm run build`
+   - **Start Command:** `npm start`
+   - **Custom Domain:** `api.millytour.uz`
+3. Environment Variables (Backend):
+   ```env
+   NODE_ENV=production
+   PORT=4000
+   DATABASE_URL=postgresql://postgres:...@...railway.app:port/railway
+   JWT_SECRET=super_secret_jwt_key_2026_millytour
+   TELEGRAM_BOT_TOKEN=your_bot_token_from_botfather
+   CLICK_MERCHANT_ID=your_click_merchant_id
+   CLICK_SERVICE_ID=your_click_service_id
+   CLICK_SECRET_KEY=your_click_secret_key
+   PAYME_MERCHANT_ID=your_payme_merchant_id
+   PAYME_SECRET_KEY=your_payme_secret_key
+   CORS_ORIGIN=https://millytour.uz,https://admin.millytour.uz
+   ```
+
+### 5.2. Railway (Telegram Bot Worker)
+1. Railway'da ikkinchi xizmat oching:
+   - **Root Directory:** `bot`
+   - **Build Command:** `npm run build`
+   - **Start Command:** `node dist/bot.js`
+2. Environment Variables (Bot):
+   ```env
+   TELEGRAM_BOT_TOKEN=your_bot_token_from_botfather
+   API_URL=https://api.millytour.uz
+   PARTNER_APP_URL=https://millytour.uz/partner/app
+   ```
+
+### 5.3. Vercel (Customer Web)
+1. Vercel'da yangi loyiha qo'shing:
+   - **Root Directory:** `frontend`
+   - **Framework Preset:** Vite
+   - **Build Command:** `npm run build`
+   - **Output Directory:** `dist`
+   - **Custom Domain:** `millytour.uz`
+2. Environment Variables:
+   ```env
+   VITE_API_URL=https://api.millytour.uz
+   ```
+
+### 5.4. Vercel (Super Admin Panel)
+1. Vercel'da alohida loyiha qo'shing:
+   - **Root Directory:** `admin`
+   - **Framework Preset:** Vite
+   - **Build Command:** `npm run build`
+   - **Output Directory:** `dist`
+   - **Custom Domain:** `admin.millytour.uz`
+2. Environment Variables:
+   ```env
+   VITE_API_URL=https://api.millytour.uz
+   ```
+
+### 5.5. Eskiz.uz DNS Sozlamalari
+Eskiz.uz domen boshqaruv paneliga kirib quyidagi yozuvlarni kiriting:
+
+| Turi (Type) | Qism / Subdomen (Name) | Qiymat (Target / Value) | Maqsad |
+|---|---|---|---|
+| **A** | `@` | `76.76.21.21` | Asosiy veb-sayt (Vercel) |
+| **CNAME** | `www` | `cname.vercel-dns.com.` | WWW yo'naltirish |
+| **CNAME** | `admin` | `cname.vercel-dns.com.` | Admin paneli (Vercel) |
+| **CNAME** | `api` | `<railway-app-id>.up.railway.app` | Backend API (Railway) |
+
+---
+
+## 6. SINOVDAN O'TKAZISH VA TESTLAR
+
+Loyiha to'liq testlangan:
+- Frontend build: `npm --prefix frontend run build` (Muvaffaqiyatli, 0 xato)
+- Admin build: `npm --prefix admin run build` (Muvaffaqiyatli, 0 xato)
+- Backend build: `./node_modules/.bin/tsc --project backend` (Muvaffaqiyatli, 0 xato)
+- Bot build: `./node_modules/.bin/tsc --project bot` (Muvaffaqiyatli, 0 xato)
+- Payment tests: `node backend/tests/payment.test.mjs` (5 ta test muvaffaqiyatli o'tdi)

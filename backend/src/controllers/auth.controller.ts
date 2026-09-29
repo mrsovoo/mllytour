@@ -159,7 +159,7 @@ export async function telegramAuth(req: Request, res: Response) {
     }
 
     // 2. Agar foydalanuvchi hamkor bo'lsa, hamkor profilini topish
-    let partner = null;
+    let partner: any = null;
     if (targetRole === "PARTNER" || user.role === "PARTNER") {
       partner = await prisma.partner.findFirst({
         where: { telegramId },

@@ -5,6 +5,7 @@ dotenv.config({ path: path.resolve(process.cwd(), ".env") });
 
 const token = process.env.TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_MAIN_BOT_TOKEN || "";
 const apiBase = process.env.API_URL || "http://localhost:4000";
+const partnerAppUrl = process.env.PARTNER_APP_URL || "https://millytour.uz/partner/app";
 
 const TELEGRAM_API = `https://api.telegram.org/bot${token}`;
 
@@ -91,14 +92,16 @@ async function handleUpdate(update: any) {
           if (json.data?.status === "APPROVED") {
             await telegramRequest("sendMessage", {
               chat_id: chatId,
-              text: `Assalomu alaykum, ${json.data.businessName}!\n\n🏠 MillyTour Hamkorlar Bosh Menyu:`,
+              text: `Assalomu alaykum, ${json.data.businessName}!\n\n🏠 MillyTour Hamkorlar Boshqaruv Portali:`,
               reply_markup: {
-                keyboard: [
-                  [{ text: "👤 Profilim" }, { text: "🛎 Xizmatlarim" }],
-                  [{ text: "📋 Buyurtmalar" }, { text: "💰 Daromad" }],
-                  [{ text: "⭐ Reyting" }, { text: "⚙️ Sozlamalar" }],
+                inline_keyboard: [
+                  [
+                    {
+                      text: "🚀 Boshqaruv Panelini Ochish (Mini App)",
+                      web_app: { url: partnerAppUrl },
+                    },
+                  ],
                 ],
-                resize_keyboard: true,
               },
             });
             return;
@@ -106,6 +109,16 @@ async function handleUpdate(update: any) {
             await telegramRequest("sendMessage", {
               chat_id: chatId,
               text: "⏳ Sizning hamkorlik arizangiz ko'rib chiqilmoqda.\n\nAdmin tasdiqlashi bilan barcha imkoniyatlar ochiladi.",
+              reply_markup: {
+                inline_keyboard: [
+                  [
+                    {
+                      text: "🚀 Ariza Holatini Ko'rish (Mini App)",
+                      web_app: { url: partnerAppUrl },
+                    },
+                  ],
+                ],
+              },
             });
             return;
           }
@@ -116,13 +129,23 @@ async function handleUpdate(update: any) {
 
       await telegramRequest("sendMessage", {
         chat_id: chatId,
-        text: "Assalomu alaykum!\n\nMillyTour hamkorlar platformasiga xush kelibsiz.\nSiz qanday xizmat ko'rsatasiz?",
+        text: "🤝 MillyTour Hamkor\n\nAssalomu alaykum!\nMillyTour hamkorlar va xizmat ko'rsatuvchilar platformasiga xush kelibsiz.\n\nAriza topshirish, xizmatlaringizni qo'shish va buyurtmalarni qabul qilish uchun quyidagi tugmani bosing:",
         reply_markup: {
           inline_keyboard: [
-            [{ text: "🧑‍🏫 Gid", callback_data: "dir_guide" }, { text: "🚗 Haydovchi", callback_data: "dir_driver" }],
-            [{ text: "🏨 Mehmonxona", callback_data: "dir_hotel" }, { text: "🍽 Restoran", callback_data: "dir_restaurant" }],
-            [{ text: "🏕 Guest House", callback_data: "dir_guesthouse" }, { text: "🎯 Tur Operator", callback_data: "dir_touroperator" }],
-            [{ text: "🛠 Boshqa xizmat", callback_data: "dir_other" }],
+            [
+              {
+                text: "🚀 Launch App (Hamkor Portali)",
+                web_app: { url: partnerAppUrl },
+              },
+            ],
+            [
+              { text: "🧑‍🏫 Gid", callback_data: "dir_guide" },
+              { text: "🚗 Haydovchi", callback_data: "dir_driver" },
+            ],
+            [
+              { text: "🏨 Mehmonxona", callback_data: "dir_hotel" },
+              { text: "🍽 Restoran", callback_data: "dir_restaurant" },
+            ],
           ],
         },
       });
