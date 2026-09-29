@@ -21,7 +21,7 @@ npm run typecheck  # tsc -b
 npm run lint       # eslint
 npm run preview    # serve the production build
 npm run audit:ui   # responsive audit: overflow + chat size + marquee (dev server yoniq bo'lsin)
-npm run audit:admin # admin panel oqimi: guard → OTP kirish → super admin panel (:3000 yoniq bo'lsin)
+npm run audit:admin # admin panel oqimi: guard → username/parol kirish → 6 bo'limli panel (:3000 yoniq bo'lsin)
 ```
 
 ### Panellar alohida portda (va alohida domenda)
@@ -29,12 +29,15 @@ npm run audit:admin # admin panel oqimi: guard → OTP kirish → super admin pa
 | Skript | Port | Rejim | Marshrutlar |
 | --- | --- | --- | --- |
 | `npm run dev` | 5173 | public | butun sayt |
-| `npm run dev:admin` | 3000 | `VITE_APP_PANEL=admin` | `/admin`, `/auth` |
+| `npm run dev:admin` | 3000 | `VITE_APP_PANEL=admin` | `/admin`, `/admin/login`, `/auth` |
 | `npm run dev:partner` | 3001 | `VITE_APP_PANEL=partner` | `/partner`, `/auth` |
 
 Panel rejimlarida ilova faqat o'z marshrutlarini ko'rsatadi, qolgan barcha manzillar panelga yo'naltiriladi. Uchtasi ham bitta backenddan (`:4000`) foydalanadi — backend allaqachon ishlayotgan bo'lsa qayta ishga tushirilmaydi, shu sababli `npm run dev` bilan bir vaqtda ochish mumkin.
 
-Localda super admin bo'lish: `http://localhost:3000/admin` → `/auth` orqali kirish (`.env.local` da `SHOW_DEV_OTP=true` bo'lsa OTP ekranda ko'rsatiladi). Tizimda hali admin yo'q bo'lsa, panel "Administrator bo'lish" tugmasini beradi — bir marta bosilsa, keyingi kirishlarda to'liq super admin paneli ochiladi.
+Admin panelga kirish: `http://localhost:3000/admin` → sessiya yo'q bo'lsa `/admin/login` ga yo'naltiriladi. Login/parol `.env` dagi `ADMIN_USERNAME` / `ADMIN_PASSWORD` dan olinadi (default: `admin` / `admin123`). Sessiya `millytour_admin_session` cookie'sida saqlanadi (7 kun) va backend'dagi `admin_sessions` jadvalida turadi.
+
+> ⚠️ Production'da `ADMIN_PASSWORD` ni albatta almashtiring — default parol faqat lokal ishlash uchun.
+
 
 Vercel'da ikki loyiha bir xil repodan deploy qilinadi:
 
@@ -51,6 +54,7 @@ Copy `.env.example` to `.env.local` and set server-only values there. Private AI
 
 | Variable | Without it | With it |
 | --- | --- | --- |
+| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | Admin panel `admin` / `admin123` bilan ochiladi | Faqat shu login/parol bilan kiriladi |
 | `GROQ_API_KEY` | Milly AI answers from the rule-based engine | Same recommendations, but the wording is written by the LLM |
 | `TELEGRAM_*_BOT_TOKEN` | Telegram login/webhook responses are simulated | Real bot messages are sent |
 | `DODO_*` | Payments return a local mock reference | Real checkout sessions |
@@ -121,7 +125,16 @@ Kontakt, ijtimoiy tarmoq va to'lov tarmoqlari — `FOOTER_CONTACT`, `FOOTER_SOCI
 ## Pages
 
 Public, wrapped in `SiteLayout` (header, footer, bottom nav): `/`, `/paketlar`, `/paketlar/:slug`, `/shaharlar`, `/shaharlar/:slug`, `/xizmatlar`, `/xizmatlar/:service`, `/hunarmandlar`, `/hamkorlar`, `/hujjatlar`, 404.
-Standalone: `/auth`, and behind `RequireAuth`: `/dashboard`, `/partner`, `/admin`.
+Standalone: `/auth`; behind `RequireAuth`: `/dashboard`, `/partner`.
+Admin panel: `/admin/login` (login/parol) va `RequireAdmin` ostida `/admin/dashboard`, `/admin/partners`, `/admin/hotels`, `/admin/restaurants`, `/admin/users`, `/admin/settings`.
+
+### Admin panel qatlami
+
+- `src/api/admin.ts` — admin REST klienti: `useAdminQuery` (`GET /api/admin/*`), `useAdminMutation` (`POST /api/admin/*`, `:id` argumentdan), `fetchAdminSession` (`/api/admin/me`).
+- `src/components/RequireAdmin.tsx` — marshrut qo'riqchisi (sessiya yo'q bo'lsa `/admin/login`).
+- `src/layouts/AdminLayout.tsx` — yon menyu (6 bo'lim), `admin_sessions` cookie'si orqali chiqish.
+- Backend marshrutlari: `server/index.mjs` dagi `/api/admin/*` (`login`, `logout`, `me`, `stats`, `users`, `providers`, `hotels`, `restaurants`, `directions`, `payments/webhook`).
+
 
 ## Architecture
 

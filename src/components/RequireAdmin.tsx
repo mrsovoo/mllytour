@@ -1,26 +1,33 @@
-import { useState, useEffect } from "react";
-import { Navigate, useLocation } from "react-router";
+import { useEffect, useState } from "react";
+import { Navigate, Outlet, useLocation } from "react-router";
 import { Loader2 } from "lucide-react";
 import type { ReactNode } from "react";
-import { apiRequest } from "@/api/client";
+import { fetchAdminSession, type AdminSession } from "@/api/admin";
 
-export function RequireAdmin({ children }: { children: ReactNode }) {
+/**
+ * Admin panel qo'riqchisi.
+ *
+ * Marshrut "layout" sifatida ishlatilganda (children'siz) `Outlet`ni ko'rsatadi,
+ * `children` berilganda esa ularni o'zini. Sessiya backend'dagi
+ * `/api/admin/me` orqali tekshiriladi (username/parol sessiyasi).
+ */
+export function RequireAdmin({ children }: { children?: ReactNode }) {
   const location = useLocation();
   const [checking, setChecking] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [admin, setAdmin] = useState<AdminSession | null>(null);
 
   useEffect(() => {
-    const check = async () => {
-      try {
-        const res = await apiRequest<{ admin: { username: string; role: string } }>("admin", "me", {}, true);
-        setIsAdmin(!!res.admin);
-      } catch {
-        setIsAdmin(false);
-      } finally {
-        setChecking(false);
-      }
+    let active = true;
+    fetchAdminSession()
+      .then((session) => {
+        if (active) setAdmin(session);
+      })
+      .finally(() => {
+        if (active) setChecking(false);
+      });
+    return () => {
+      active = false;
     };
-    check();
   }, []);
 
   if (checking) {
@@ -31,15 +38,13 @@ export function RequireAdmin({ children }: { children: ReactNode }) {
     );
   }
 
-  if (!isAdmin) {
+  if (!admin) {
     const returnTo = `${location.pathname}${location.search}`;
     return (
-      <Navigate
-        to={`/admin/login?returnTo=${encodeURIComponent(returnTo)}`}
-        replace
-      />
+      <Navigate to={`/admin/login?returnTo=${encodeURIComponent(returnTo)}`} replace />
     );
   }
 
-  return <>{children}</>;
+  return children ? <>{children}</> : <Outlet />;
 }
+

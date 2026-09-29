@@ -1,24 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link } from "react-router";
-import { useRestQuery, useRestMutation } from "@/api/client";
-import {
-  Search,
-  Plus,
-  Edit3,
-  Trash2,
-  Eye,
-  ArrowUpDown,
-  MoreHorizontal,
-  Store,
-  Phone,
-  MapPin,
-  Star,
-  CheckCircle2,
-  XCircle,
-  Clock,
-} from "lucide-react";
+import { useAdminQuery, useAdminMutation } from "@/api/admin";
+import { toast } from "sonner";
+import { Eye, Edit3, MoreHorizontal, Store, Star, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -35,12 +22,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import AdminLayout from "@/layouts/AdminLayout";
 import { PARTNER_DIRECTIONS } from "@/data/catalog";
 
@@ -71,15 +57,30 @@ export default function AdminPartners() {
   if (statusFilter !== "all") queryParams.status = statusFilter;
   if (directionFilter !== "all") queryParams.direction = directionFilter;
 
-  const { data: providers, isLoading } = useRestQuery("admin", "providers", queryParams);
-  const { mutate: changeStatus } = useRestMutation("admin", "providers/:id/status");
-  const { mutate: changeSubscription } = useRestMutation("admin", "providers/:id/subscription");
+  const { data: providers, isLoading, refetch } = useAdminQuery<Provider[]>(
+    "/providers",
+    queryParams,
+  );
+  const { mutate: changeStatus } = useAdminMutation("/providers/:id/status");
+  const { mutate: changeSubscription } = useAdminMutation("/providers/:id/subscription");
 
   const handleStatusChange = async (id: string, status: string) => {
     try {
       await changeStatus({ providerId: id, status });
+      await refetch();
     } catch (err) {
-      console.error(err);
+      toast.error(err instanceof Error ? err.message : "Holatni o'zgartirib bo'lmadi");
+    }
+  };
+
+  /** Obunani bir oyga uzaytiradi (to'lov tasdiqlangach admin qo'lda yoqadi). */
+  const handleSubscription = async (id: string) => {
+    try {
+      await changeSubscription({ providerId: id, subscription: "active", months: 1 });
+      toast.success("Obuna 1 oyga uzaytirildi");
+      await refetch();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Obunani yangilab bo'lmadi");
     }
   };
 
@@ -202,6 +203,9 @@ export default function AdminPartners() {
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => alert("Tahrirlash: " + p.businessName)}>
                               <Edit3 className="size-4 mr-2" /> Tahrirlash
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleSubscription(p._id)}>
+                              <CheckCircle2 className="size-4 mr-2" /> Obunani 1 oyga uzaytirish
                             </DropdownMenuItem>
                             {(p.status === "approved" || p.status === "pending") && (
                               <DropdownMenuItem

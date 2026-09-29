@@ -1,32 +1,9 @@
-import { useEffect, useState } from "react";
 import { Link } from "react-router";
-import { useRestQuery, useRestMutation } from "@/api/client";
-import {
-  Users,
-  Store,
-  ClipboardList,
-  BadgeCheck,
-  Wallet,
-  BarChart3,
-  Bot,
-  Plus,
-  Eye,
-  Edit3,
-  Trash2,
-  Search,
-  ArrowUpDown,
-  MoreHorizontal,
-} from "lucide-react";
+import { useAdminQuery } from "@/api/admin";
+import { Users, Store, ClipboardList, BadgeCheck, Search, Building2, Utensils } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -35,15 +12,27 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import AdminLayout from "@/layouts/AdminLayout";
 
 type UserRole = "user" | "admin" | "owner";
+
+/** `GET /api/admin/stats` javobi. */
+interface AdminStats {
+  users: number;
+  providers: number;
+  bookings: number;
+  pendingProviders: number;
+  reviews?: number;
+}
+
+/** `GET /api/admin/providers` elementlari (ro'yxat qisqartirilgan holda). */
+interface AdminProvider {
+  _id: string;
+  businessName?: string;
+  city?: string;
+  direction?: string;
+  status: string;
+}
 
 interface AdminUser {
   id: string;
@@ -61,12 +50,13 @@ interface AdminUser {
 }
 
 export default function AdminDashboard() {
-  const stats = useRestQuery("admin", "stats");
-  const users = useRestQuery("admin", "users");
-  const providers = useRestQuery("admin", "providers");
+  const { data: stats } = useAdminQuery<AdminStats>("/stats");
+  const { data: users } = useAdminQuery<AdminUser[]>("/users");
+  const { data: providers } = useAdminQuery<AdminProvider[]>("/providers");
 
   return (
-    <div className="space-y-6">
+    <AdminLayout>
+      <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Boshqaruv paneli</h1>
@@ -168,7 +158,7 @@ export default function AdminDashboard() {
             <CardContent className="pt-6">
               <h3 className="font-semibold mb-4">Hamkorlar (oxirgi 5 ta)</h3>
               <div className="space-y-3">
-                {(providers?.slice(0, 5) ?? []).map((p: any) => (
+                {(providers?.slice(0, 5) ?? []).map((p) => (
                   <div key={p._id} className="flex items-center justify-between rounded-lg border p-3">
                     <div>
                       <p className="text-sm font-medium">{p.businessName || "—"}</p>
@@ -186,21 +176,39 @@ export default function AdminDashboard() {
         </div>
       </div>
     </div>
+    </AdminLayout>
   );
 }
 
-function StatCard({ icon: Icon, label, value, tone }: { icon: React.ElementType; label: string; value: number; tone?: string }) {
-  const toneClass = {
-    gold: "text-gold",
-    amber: "text-amber-500",
-    eco: "text-eco",
-  }[tone || ""];
+/** Statistik karta ranglari — Tailwind klasslari statik bo'lishi shart. */
+const STAT_TONES = {
+  gold: "bg-gold/10 text-gold",
+  amber: "bg-amber-500/10 text-amber-600",
+  eco: "bg-eco/10 text-eco",
+} as const;
 
+type StatTone = keyof typeof STAT_TONES;
+
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: React.ElementType;
+  label: string;
+  value: number;
+  tone?: StatTone;
+}) {
   return (
     <Card>
       <CardContent className="pt-6">
         <div className="flex items-center gap-3">
-          <span className={`grid size-10 place-items-center rounded-xl ${toneClass ? `bg-${tone.split("-")[0]}/10 ${toneClass}` : "bg-muted"}`}>
+          <span
+            className={`grid size-10 place-items-center rounded-xl ${
+              tone ? STAT_TONES[tone] : "bg-muted text-muted-foreground"
+            }`}
+          >
             <Icon className="size-5" aria-hidden="true" />
           </span>
           <div>

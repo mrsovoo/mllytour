@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link } from "react-router";
-import { useRestQuery, useRestMutation } from "@/api/client";
-import { Building2, Search, Plus, Edit3, Trash2, Eye, MoreHorizontal, Star, Clock, Phone, MapPin, ChevronLeft } from "lucide-react";
+import { useAdminQuery, useAdminMutation } from "@/api/admin";
+import { Building2, Edit3, Eye, MoreHorizontal, Star, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -49,12 +49,18 @@ interface Hotel {
 export default function AdminHotels() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [cityFilter, setCityFilter] = useState("all");
-  const { data: hotels, isLoading } = useRestQuery("admin", "hotels", statusFilter !== "all" ? { status: statusFilter } : {});
-  const { mutate: changeStatus } = useRestMutation("admin", "hotels/:id/status");
+
+  const params: Record<string, string> = {};
+  if (statusFilter !== "all") params.status = statusFilter;
+  if (cityFilter !== "all") params.city = cityFilter;
+
+  const { data: hotels, isLoading, refetch } = useAdminQuery<Hotel[]>("/hotels", params);
+  const { mutate: changeStatus } = useAdminMutation("/hotels/:id/status");
 
   const handleStatusChange = async (id: string, status: string) => {
     try {
       await changeStatus({ id, status });
+      await refetch();
     } catch (err) {
       console.error(err);
     }

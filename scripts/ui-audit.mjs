@@ -10,8 +10,22 @@
  */
 
 import { spawn } from "node:child_process";
+import { readFileSync } from "node:fs";
 
 const BASE = process.argv.find((a) => a.startsWith("--base="))?.slice(7) ?? "http://127.0.0.1:5173";
+
+/** Admin panel kirish ma'lumotlari — `.env` (yoki muhit o'zgaruvchilari) dan olinadi. */
+const ENV_TEXT = (() => {
+  try {
+    return readFileSync(new URL("../.env", import.meta.url), "utf8");
+  } catch {
+    return "";
+  }
+})();
+const envValue = (key) =>
+  process.env[key] ?? ENV_TEXT.match(new RegExp(`^${key}=(.*)$`, "m"))?.[1]?.trim() ?? "";
+const ADMIN_USERNAME = envValue("ADMIN_USERNAME") || "admin";
+const ADMIN_PASSWORD = envValue("ADMIN_PASSWORD") || "admin123";
 /** `--admin`: faqat admin panel oqimini tekshiradi (npm run audit:admin). */
 const ADMIN_MODE = process.argv.includes("--admin");
 const PORT = 9333;
@@ -74,9 +88,13 @@ const OVERFLOW_PROBE = `(() => {
 /**
  * Admin panel auditi (`--admin`, `npm run dev:admin` yoniq bo'lishi kerak).
  *
- * Tekshiriladi: kirilmagan holatda `/admin` → `/auth`, admin-only rejimda
- * boshqa sahifalar `/admin` ga yo'naltirilishi, email OTP bilan kirish va
- * super admin huquqini berish ("Administrator bo'lish") oqimi.
+ * Tekshiriladi:
+ *   1. kirilmagan holatda `/admin` → `/admin/login` qo'riqlanishi,
+ *   2. admin-only rejimda boshqa sahifalar panelga yo'naltirilishi,
+ *   3. username/parol bilan kirish (`/api/admin/login`),
+ *   4. panel va yon menyuning 6 bo'limi,
+ *   5. har bir bo'lim sahifasi runtime xatosiz ochilishi,
+ *   6. chiqishdan keyin sessiya yopilishi.
  */
 async function runAdminFlow(call) {
   let problems = 0;
@@ -104,17 +122,17 @@ async function runAdminFlow(call) {
 
   console.log(`\nAdmin panel auditi: ${BASE}/admin\n`);
 
-  // 1. Kirilmagan holatda himoya: /admin → /auth?returnTo=/admin
+  // 1. Kirilmagan holatda himoya: /admin → /admin/login?returnTo=/admin
   await goto("/admin");
   const guard = await evaluate(`({
     path: location.pathname,
     search: location.search,
     hasForm: Boolean(document.querySelector("form")),
   })`);
-  const guardOk = guard.path === "/auth" && String(guard.search).includes("returnTo");
+  const guardOk = guard.path === "/admin/login" && guard.hasForm === true;
   if (!guardOk) problems += 1;
   console.log(
-    `Kirilmagan holat: /admin → ${guard.path}${guard.search ?? ""} → ` +
+    `Kirilmagan holat: /admin → ${guard.path}${guard.search ?? ""} (forma=${guard.hasForm}) → ` +
       `${guardOk ? "kirish sahifasiga yo'naltirildi ✅" : "xato ❌"}`,
   );
 
@@ -125,89 +143,100 @@ async function runAdminFlow(call) {
     publicSiteVisible: Boolean(document.querySelector("#qidiruv")) || Boolean(document.querySelector("#turlar")),
   })`);
   const adminOnlyOk =
-    ["/admin", "/auth"].includes(adminOnly.path) && adminOnly.publicSiteVisible === false;
+    ["/admin", "/admin/login"].includes(adminOnly.path) &&
+    adminOnly.publicSiteVisible === false;
   if (!adminOnlyOk) problems += 1;
   console.log(
     `Admin-only rejim: /paketlar → ${adminOnly.path} (public sayt ko'rinadi=${adminOnly.publicSiteVisible}) → ` +
       `${adminOnlyOk ? "faqat panel ko'rinadi ✅" : "xato ❌"}`,
   );
 
-  // 3. Email OTP bilan kirish (dev rejimida kod javobda keladi)
-  await goto("/auth?returnTo=%2Fadmin", 1600);
+  // 3. Username/parol bilan kirish (`/api/admin/login` sessiya cookie beradi)
+  await goto("/admin/login", 1600);
+  const credentials = { username: ADMIN_USERNAME, password: ADMIN_PASSWORD };
   const signin = await evaluate(`(async () => {
-    const email = "admin-audit@millytour.uz";
-    const request = await fetch("/api/auth/email/request", {
+    const response = await fetch("/api/admin/login", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email }),
-    }).then((r) => r.json());
-    if (!request.devCode) return { error: "devCode qaytmadi (SHOW_DEV_OTP=true kerak)" };
-    const verify = await fetch("/api/auth/email/verify", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ challengeId: request.challengeId, code: request.devCode }),
-    }).then((r) => r.json());
-    return { ok: Boolean(verify.ok), email: verify.user?.email ?? null };
+      body: JSON.stringify(${JSON.stringify(credentials)}),
+    });
+    const payload = await response.json().catch(() => ({}));
+    return {
+      ok: response.ok && Boolean(payload.ok),
+      role: payload.admin?.role ?? null,
+      error: payload.error ?? null,
+    };
   })()`);
   const signinOk = signin.ok === true;
   if (!signinOk) problems += 1;
   console.log(
-    `Email OTP bilan kirish: ${signin.email ?? signin.error ?? "—"} → ` +
+    `Admin kirish (${ADMIN_USERNAME}): ${signin.role ?? signin.error ?? "—"} → ` +
       `${signinOk ? "seans ochildi ✅" : "xato ❌"}`,
   );
 
-  // 4. Panelni ochib, super admin huquqini berish oqimi
-  await goto("/admin", 2100);
-  const claim = await evaluate(`(async () => {
-    const wrongPassword = document.body.innerText.includes("Administrator huquqi kerak");
-    const button = [...document.querySelectorAll("button")].find((b) =>
-      b.textContent.includes("Administrator bo'lish"),
-    );
-    if (!button) {
-      return {
-        claimButton: false,
-        panel: document.body.innerText.includes("Umumiy ko'rsatkichlar"),
-        blocked: wrongPassword,
-      };
-    }
-    button.click();
-    await new Promise((r) => setTimeout(r, 1700));
-    return {
-      claimButton: true,
-      panel: document.body.innerText.includes("Umumiy ko'rsatkichlar"),
-      blocked: false,
-    };
-  })()`);
-
-  // 5. Yangilangandan keyin panel va admin statusi
+  // 4. Panel va yon menyuning bo'limlari
   await goto("/admin", 2100);
   const panel = await evaluate(`(async () => {
-    const response = await fetch("/api/rest/admin/status", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: "{}",
-    }).then((r) => r.json());
+    const response = await fetch("/api/admin/stats").then((r) => r.json()).catch(() => ({}));
     const text = document.body.innerText;
-    const tabs = ["Umumiy ko'rsatkichlar", "Hamkorlar", "Buyurtmalar", "To'lovlar", "Bot sozlamalari"];
+    const sections = ${JSON.stringify([
+      "Umumiy ko'rsatkichlar",
+      "Hamkorlar",
+      "Mehmonxonalar",
+      "Restoranlar",
+      "Foydalanuvchilar",
+      "Sozlamalar",
+    ])};
     return {
-      isAdmin: Boolean(response.data?.isAdmin),
-      tabs: tabs.filter((tab) => text.includes(tab)).length,
+      stats: Boolean(response.data),
+      users: response.data?.users ?? null,
+      sections: sections.filter((item) => text.includes(item)).length,
       path: location.pathname,
       preview: text.replace(/\\s+/g, " ").slice(0, 220),
     };
   })()`);
-  const adminOk = panel.isAdmin === true && (panel.tabs ?? 0) >= 4 && panel.path === "/admin";
-  if (!adminOk) problems += 1;
+  const panelOk = panel.path === "/admin" && panel.stats === true && (panel.sections ?? 0) >= 6;
+  if (!panelOk) problems += 1;
   console.log(
-    `Administrator huquqi: ${claim.claimButton ? "\"Administrator bo'lish\" bosildi" : "tugma chiqmadi (allaqachon admin)"}`,
+    `Boshqaruv paneli: /admin, bo'limlar=${panel.sections}/6, /api/admin/stats=${panel.stats} (foydalanuvchilar=${panel.users}) → ` +
+      `${panelOk ? "panel ochildi ✅" : "panel ochilmadi ❌"}`,
   );
-  console.log(
-    `Super admin paneli: /admin, bo'limlar=${panel.tabs}/5, isAdmin=${panel.isAdmin} → ` +
-      `${adminOk ? "to'liq panel ochildi ✅" : "panel ochilmadi ❌"}`,
-  );
-  if (!adminOk) {
+  if (!panelOk) {
     console.log(`  ekranda: ${panel.preview || "(bo'sh)"}`);
   }
+
+  // 5. Har bir bo'lim sahifasi runtime xatosiz ochiladi
+  const SUB_ROUTES = [
+    ["/admin/partners", "Hamkorlar"],
+    ["/admin/hotels", "Mehmonxonalar"],
+    ["/admin/restaurants", "Restoranlar"],
+    ["/admin/users", "Foydalanuvchilar"],
+    ["/admin/settings", "Sozlamalar"],
+  ];
+  for (const [route, heading] of SUB_ROUTES) {
+    await goto(route, 1700);
+    const view = await evaluate(`({
+      path: location.pathname,
+      visible: document.body.innerText.includes(${JSON.stringify(heading)}),
+    })`);
+    const viewOk = view.path === route && view.visible === true;
+    if (!viewOk) problems += 1;
+    console.log(`${route} (${heading}) → ${view.path} → ${viewOk ? "ochildi ✅" : "xato ❌"}`);
+  }
+
+  // 6. Chiqishdan keyin sessiya yopiladi va panel yana qo'riqlanadi
+  const logout = await evaluate(`(async () => {
+    const response = await fetch("/api/admin/logout", { method: "POST" });
+    const payload = await response.json().catch(() => ({}));
+    return { ok: response.ok && Boolean(payload.ok) };
+  })()`);
+  await goto("/admin", 1900);
+  const afterLogout = await evaluate(`({ path: location.pathname })`);
+  const logoutOk = logout.ok === true && afterLogout.path === "/admin/login";
+  if (!logoutOk) problems += 1;
+  console.log(
+    `Chiqish: /admin → ${afterLogout.path} → ${logoutOk ? "sessiya yopildi ✅" : "xato ❌"}`,
+  );
 
   return problems;
 }

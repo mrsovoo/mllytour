@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router";
-import { useRestAction } from "@/api/client";
+import { useAdminMutation, fetchAdminSession } from "@/api/admin";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,18 +13,14 @@ export default function AdminLogin() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const login = useRestAction("admin", "login");
+  const { mutate: login } = useAdminMutation("/login");
 
   useEffect(() => {
     const checkAdmin = async () => {
-      try {
-        const res = await fetch("/api/admin/me", { credentials: "include" });
-        const data = await res.json();
-        if (data.admin) {
-          navigate("/admin/dashboard");
-        }
-      } catch {
-        // not logged in
+      // Allaqachon kirilgan bo'lsa — panelga o'tamiz.
+      const session = await fetchAdminSession();
+      if (session) {
+        navigate("/admin/dashboard");
       }
     };
     checkAdmin();

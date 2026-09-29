@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link } from "react-router";
-import { useRestQuery, useRestMutation } from "@/api/client";
-import { Utensils, Search, Plus, Edit3, Trash2, Eye, MoreHorizontal, Star, Clock, Phone, ChevronLeft, MapPin } from "lucide-react";
+import { useAdminQuery, useAdminMutation } from "@/api/admin";
+import { Utensils, Edit3, Eye, MoreHorizontal, Star, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -48,12 +48,20 @@ interface Restaurant {
 
 export default function AdminRestaurants() {
   const [statusFilter, setStatusFilter] = useState("all");
-  const { data: restaurants, isLoading } = useRestQuery("admin", "restaurants", statusFilter !== "all" ? { status: statusFilter } : {});
-  const { mutate: changeStatus } = useRestMutation("admin", "restaurants/:id/status");
+
+  const params: Record<string, string> = {};
+  if (statusFilter !== "all") params.status = statusFilter;
+
+  const { data: restaurants, isLoading, refetch } = useAdminQuery<Restaurant[]>(
+    "/restaurants",
+    params,
+  );
+  const { mutate: changeStatus } = useAdminMutation("/restaurants/:id/status");
 
   const handleStatusChange = async (id: string, status: string) => {
     try {
       await changeStatus({ id, status });
+      await refetch();
     } catch (err) {
       console.error(err);
     }

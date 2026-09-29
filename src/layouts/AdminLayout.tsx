@@ -11,11 +11,10 @@ import {
   LogOut,
   ShieldCheck,
   Menu,
-  X,
   ChevronLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { apiRequest } from "@/api/client";
+import { fetchAdminSession, adminFetch } from "@/api/admin";
 
 interface NavItem {
   id: string;
@@ -44,8 +43,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const res = await apiRequest<{ admin: { username: string; role: string } }>("admin", "me", {}, true);
-        setAdminUser(res.admin);
+        const session = await fetchAdminSession();
+        if (!session) {
+          navigate("/admin/login");
+          return;
+        }
+        setAdminUser(session);
       } catch {
         navigate("/admin/login");
       } finally {
@@ -57,7 +60,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const handleLogout = async () => {
     try {
-      await apiRequest("admin", "logout", {}, true);
+      await adminFetch("/logout", { method: "POST" });
     } catch {
       // ignore
     }

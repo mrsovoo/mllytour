@@ -1,7 +1,6 @@
-import { useEffect } from "react";
 import { Link } from "react-router";
-import { useRestQuery, useRestMutation } from "@/api/client";
-import { Users, Search, Edit3, Trash2, ChevronLeft, ShieldCheck, UserX, Crown, ArrowUpDown, Phone, Mail } from "lucide-react";
+import { useAdminQuery, useAdminMutation } from "@/api/admin";
+import { Trash2, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -38,13 +37,14 @@ interface AdminUser {
 }
 
 export default function AdminUsers() {
-  const { data: users, isLoading } = useRestQuery("admin", "users");
-  const { mutate: changeRole } = useRestMutation("admin", "users/:id/role");
-  const { mutate: deleteUser } = useRestMutation("admin", "users/:id/delete");
+  const { data: users, isLoading, refetch } = useAdminQuery<AdminUser[]>("/users");
+  const { mutate: changeRole } = useAdminMutation("/users/:id/role");
+  const { mutate: deleteUser } = useAdminMutation("/users/:id/delete");
 
   const handleRoleChange = async (id: string, role: string) => {
     try {
       await changeRole({ id, role });
+      await refetch();
     } catch (err) {
       console.error(err);
     }
@@ -54,6 +54,7 @@ export default function AdminUsers() {
     if (confirm(`${name} foydalanuvchisini o'chirish?`)) {
       try {
         await deleteUser({ id });
+        await refetch();
       } catch (err) {
         console.error(err);
       }

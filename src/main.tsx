@@ -1,5 +1,6 @@
 import '@vly-ai/integrations';
 import { Toaster } from '@/components/ui';
+import { RequireAdmin } from "@/components/RequireAdmin";
 import { RequireAuth } from "@/components/RequireAuth";
 import { VlyToolbar } from "../vly-toolbar-readonly.tsx";
 import { AiAssistant } from "@/components/AiAssistant";
@@ -8,7 +9,7 @@ import { OnboardingGate } from "@/components/OnboardingGate";
 import { SiteLayout } from "@/components/site";
 import React, { StrictMode, useEffect, lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, Navigate, Route, Routes, useLocation, useRoutes } from "react-router";
+import { BrowserRouter, Navigate, useLocation, useRoutes, type RouteObject } from "react-router";
 import { LangProvider } from "@/lib/i18n";
 import "./index.css";
 
@@ -40,7 +41,6 @@ const Partners = lazy(() => import("./pages/Partners.tsx"));
 const AuthPage = lazy(() => import("./pages/Auth.tsx"));
 const Dashboard = lazy(() => import("./pages/Dashboard.tsx"));
 const Partner = lazy(() => import("./pages/Partner.tsx"));
-const Admin = lazy(() => import("./pages/Admin.tsx"));
 const AdminLogin = lazy(() => import("./pages/AdminLogin.tsx"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard.tsx"));
 const AdminPartners = lazy(() => import("./pages/AdminPartners.tsx"));
@@ -50,25 +50,76 @@ const AdminUsers = lazy(() => import("./pages/AdminUsers.tsx"));
 const AdminSettings = lazy(() => import("./pages/AdminSettings.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 
-function AdminRoutes() {
-  const routes = useRoutes([
-    { path: "/admin/login", element: <AdminLogin /> },
-    {
-      path: "/admin",
-      element: <RequireAdmin />,
-      children: [
-        { path: "dashboard", element: <AdminDashboard /> },
-        { path: "partners", element: <AdminPartners /> },
-        { path: "hotels", element: <AdminHotels /> },
-        { path: "restaurants", element: <AdminRestaurants /> },
-        { path: "users", element: <AdminUsers /> },
-        { path: "settings", element: <AdminSettings /> },
-        { index: true, element: <AdminDashboard /> },
-      ],
-    },
-  ]);
+/**
+ * Admin panel marshrutlari.
+ *
+ * Bir xil ro'yxat ikki joyda ishlatiladi: `admin` panel rejimida (faqat shu
+ * marshrutlar) va oddiy sayt ichida (`/admin` — footer'dagi havola uchun).
+ */
+const ADMIN_ROUTES: RouteObject[] = [
+  { path: "/admin/login", element: <AdminLogin /> },
+  {
+    path: "/admin",
+    element: <RequireAdmin />,
+    children: [
+      { path: "dashboard", element: <AdminDashboard /> },
+      { path: "partners", element: <AdminPartners /> },
+      { path: "hotels", element: <AdminHotels /> },
+      { path: "restaurants", element: <AdminRestaurants /> },
+      { path: "users", element: <AdminUsers /> },
+      { path: "settings", element: <AdminSettings /> },
+      { index: true, element: <AdminDashboard /> },
+    ],
+  },
+];
 
-  return routes;
+/** Oddiy (public) sayt marshrutlari — 404 alohida qo'shiladi. */
+const PUBLIC_ROUTES: RouteObject[] = [
+  { path: "/", element: <Public><Landing /></Public> },
+  { path: "/paketlar", element: <Public><Packages /></Public> },
+  { path: "/paketlar/:slug", element: <Public><PackageDetail /></Public> },
+  { path: "/shaharlar", element: <Public><Destinations /></Public> },
+  { path: "/takliflar", element: <Public><Deals /></Public> },
+  { path: "/shaharlar/:slug", element: <Public><DestinationDetail /></Public> },
+  { path: "/xizmatlar", element: <Public><Services /></Public> },
+  { path: "/xizmatlar/:service", element: <Public><ServiceDetail /></Public> },
+  { path: "/hunarmandlar", element: <Public><Marketplace /></Public> },
+  { path: "/hamkorlar", element: <Public><Partners /></Public> },
+  { path: "/hujjatlar", element: <Public><Documents /></Public> },
+  { path: "/auth", element: <AuthPage redirectAfterAuth="/dashboard" /> },
+  { path: "/dashboard", element: <RequireAuth><Dashboard /></RequireAuth> },
+  { path: "/partner", element: <RequireAuth><Partner /></RequireAuth> },
+];
+
+/**
+ * Bitta router — panel rejimiga qarab marshrutlar to'plami tanlanadi.
+ *
+ * Muhim: har bir rejimda **bitta** `useRoutes` ishlatilishi kerak. Ilgari admin
+ * marshrutlari alohida router sifatida yonma-yon qo'yilgan edi va shu yerdagi
+ * `path="*"` barcha `/admin/...` manzillarni ushlab, panel ichidagi bo'limlar
+ * ochilmasdi.
+ */
+function AppRouter() {
+  const routes: RouteObject[] =
+    APP_PANEL === "admin"
+      ? [
+          { path: "/auth", element: <AuthPage redirectAfterAuth="/admin" /> },
+          ...ADMIN_ROUTES,
+          { path: "*", element: <Navigate to="/admin" replace /> },
+        ]
+      : APP_PANEL === "partner"
+        ? [
+            { path: "/auth", element: <AuthPage redirectAfterAuth="/partner" /> },
+            { path: "/partner", element: <RequireAuth><Partner /></RequireAuth> },
+            { path: "*", element: <Navigate to="/partner" replace /> },
+          ]
+        : [
+            ...PUBLIC_ROUTES,
+            ...ADMIN_ROUTES,
+            { path: "*", element: <Public><NotFound /></Public> },
+          ];
+
+  return useRoutes(routes);
 }
 
 // Simple loading fallback for route transitions
@@ -177,42 +228,7 @@ root.render(
         <BrowserRouter>
             <RouteSyncer />
             <Suspense fallback={<RouteLoading />}>
-              {APP_PANEL === "admin" ? (
-                <>
-                  <Routes>
-                    <Route path="/auth" element={<AuthPage redirectAfterAuth="/admin" />} />
-                    <Route path="*" element={<Navigate to="/admin" replace />} />
-                  </Routes>
-                  <AdminRoutes />
-                </>
-              ) : APP_PANEL === "partner" ? (
-                <>
-                  <Routes>
-                    <Route path="/auth" element={<AuthPage redirectAfterAuth="/partner" />} />
-                    <Route path="/partner" element={<RequireAuth><Partner /></RequireAuth>} />
-                    <Route path="*" element={<Navigate to="/partner" replace />} />
-                  </Routes>
-                  <AdminRoutes />
-                </>
-              ) : (
-                <Routes>
-                  <Route path="/" element={<Public><Landing /></Public>} />
-                  <Route path="/paketlar" element={<Public><Packages /></Public>} />
-                  <Route path="/paketlar/:slug" element={<Public><PackageDetail /></Public>} />
-                  <Route path="/shaharlar" element={<Public><Destinations /></Public>} />
-                  <Route path="/takliflar" element={<Public><Deals /></Public>} />
-                  <Route path="/shaharlar/:slug" element={<Public><DestinationDetail /></Public>} />
-                  <Route path="/xizmatlar" element={<Public><Services /></Public>} />
-                  <Route path="/xizmatlar/:service" element={<Public><ServiceDetail /></Public>} />
-                  <Route path="/hunarmandlar" element={<Public><Marketplace /></Public>} />
-                  <Route path="/hamkorlar" element={<Public><Partners /></Public>} />
-                  <Route path="/hujjatlar" element={<Public><Documents /></Public>} />
-                  <Route path="/auth" element={<AuthPage redirectAfterAuth="/dashboard" />} />
-                  <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
-                  <Route path="/partner" element={<RequireAuth><Partner /></RequireAuth>} />
-                  <Route path="*" element={<Public><NotFound /></Public>} />
-                </Routes>
-              )}
+              <AppRouter />
             </Suspense>
             <ScrollToTop />
             <AiAssistant />
