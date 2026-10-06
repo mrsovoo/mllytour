@@ -50,7 +50,7 @@ export function PanelShell({
   const navigate = useNavigate();
 
   const variantMeta = {
-    tourist: { label: "Sayohatchi kabineti", tone: "text-primary" },
+    tourist: { label: "Sayohatchi profili", tone: "text-primary" },
     partner: { label: "Hamkor paneli", tone: "text-gold" },
     admin: { label: "Millytour administratori", tone: "text-eco" },
   }[variant];

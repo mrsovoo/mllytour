@@ -4,7 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Headset, Sparkles, X } from "lucide-react";
 import { useRestQuery } from "@/shared/api/client";
 import { PlannerChat } from "@/features/ai/components/planner-chat";
-import { MAIN_BOT_USERNAME } from "@/shared/data/catalog";
+import { SupportChat } from "@/features/support/components/support-chat";
 import { cn } from "@/shared/lib/utils";
 
 /**
@@ -35,13 +35,6 @@ function AiStatusLine({ compact }: { compact?: boolean }) {
   );
 }
 
-/** Eslatma oynasida navbatma-navbat chiqadigan xabarlar. */
-const NUDGE_TEXTS = [
-  "Sayohatni shu yerdan boshlang",
-  "Qanday yordam bera olaman?",
-  "Tur dasturini bir necha savolda tuzaman",
-];
-
 /** Milly AI widgetini istalgan joydan (masalan, landing AI bo'limidan) ochish uchun global hodisa. */
 export function openMillyAi() {
   window.dispatchEvent(new CustomEvent("millytour:open-milly"));
@@ -56,39 +49,13 @@ export function openMillyAi() {
  */
 export function AiAssistant() {
   const [open, setOpen] = useState(false);
+  const [supportOpen, setSupportOpen] = useState(false);
   const status = useRestQuery("aiStatus", "status");
   // Harakatga sezgir foydalanuvchilarda bezak animatsiyalari o'chiriladi.
   const reducedMotion = useReducedMotion();
   const { pathname, search } = useLocation();
   const isMiniApp = new URLSearchParams(search).get("miniapp") === "1";
   const hidden = ["/auth", "/admin", "/partner"].some((p) => pathname.startsWith(p));
-
-  // Eslatma (nudge) holati — 4 sekunddan keyin chiqadi, har 16 sekundda yangilanadi.
-  const [nudge, setNudge] = useState(false);
-  const [nudgeIndex, setNudgeIndex] = useState(0);
-
-  useEffect(() => {
-    if (open || reducedMotion) {
-      setNudge(false);
-      return;
-    }
-    let hideTimer = 0;
-    const show = () => {
-      setNudge(true);
-      window.clearTimeout(hideTimer);
-      hideTimer = window.setTimeout(() => {
-        setNudge(false);
-        setNudgeIndex((index) => (index + 1) % NUDGE_TEXTS.length);
-      }, 6500);
-    };
-    const firstTimer = window.setTimeout(show, 4000);
-    const loop = window.setInterval(show, 16000);
-    return () => {
-      window.clearTimeout(firstTimer);
-      window.clearTimeout(hideTimer);
-      window.clearInterval(loop);
-    };
-  }, [open, reducedMotion]);
 
   useEffect(() => {
     const handler = () => setOpen(true);
@@ -167,11 +134,10 @@ export function AiAssistant() {
         Qo'llab-quvvatlash — AI tugmasining ustida, chat ochiq bo'lganda yashiriladi.
         Diqqatni tortish uchun har 3 sekundda yengil tebranadi (0.9s harakat + 2.1s tanaffus).
       */}
-      {!open && (
-        <motion.a
-          href={`https://t.me/${MAIN_BOT_USERNAME}?start=support`}
-          target="_blank"
-          rel="noreferrer"
+      {!open && !supportOpen && (
+        <motion.button
+          type="button"
+          onClick={() => setSupportOpen(true)}
           aria-label="Biz bilan bog'lanish (qo'llab-quvvatlash)"
           title="Biz bilan bog'lanish — savol va yordam"
           animate={
@@ -188,36 +154,11 @@ export function AiAssistant() {
           className="grid size-14 place-items-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:border-gold/50 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
           <Headset className="size-7" aria-hidden="true" />
-        </motion.a>
+        </motion.button>
       )}
 
       <div className="relative">
-        {/*
-          Har 16 sekundda navbatma-navbat chiqadigan eslatma: savol yoki taklif.
-          Chat ochilganda yoki "kamaytirilgan harakat" rejimida ko'rsatilmaydi.
-        */}
-        <AnimatePresence>
-          {nudge && !open && (
-            <motion.button
-              key="nudge"
-              type="button"
-              onClick={() => setOpen(true)}
-              initial={{ opacity: 0, y: 8, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 8, scale: 0.96 }}
-              transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-              className="press absolute right-full bottom-1 mr-3 hidden w-60 rounded-2xl rounded-br-md border border-gold/40 bg-card px-3.5 py-2.5 text-left shadow-lifted sm:block"
-            >
-              <span className="block text-[13.5px] leading-5 font-semibold text-foreground">
-                {NUDGE_TEXTS[nudgeIndex]}
-              </span>
-              <span className="mt-1 block text-[11.5px] leading-4 text-muted-foreground">
-                Bosib Milly AI bilan boshlang
-              </span>
-            </motion.button>
-          )}
-        </AnimatePresence>
-
+        {!supportOpen && (
         <button
           type="button"
           onClick={() => setOpen((prev) => !prev)}
@@ -265,7 +206,10 @@ export function AiAssistant() {
             </>
           )}
         </button>
+        )}
       </div>
+
+      <SupportChat open={supportOpen} onClose={() => setSupportOpen(false)} />
       </div>
     </>
   );

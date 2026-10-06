@@ -2,18 +2,9 @@ import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/shared/components/ui/input-otp";
 import { useAuth } from "@/features/auth/hooks/use-auth";
+import { AuthChoiceDialog } from "@/features/auth/components/auth-choice-dialog";
 import { MillytourLogo } from "@/shared/components/brand";
-import { PARTNER_BOT_USERNAME, partnerBotLink } from "@/shared/data/catalog";
-import {
-  ArrowLeft,
-  ArrowRight,
-  Globe,
-  Loader2,
-  Mail,
-  Send,
-  ShieldCheck,
-  UserRound,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, Globe, Loader2, Mail, Send, ShieldCheck } from "lucide-react";
 import { Suspense, useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 
@@ -21,7 +12,7 @@ interface AuthProps {
   redirectAfterAuth?: string;
 }
 
-function resolveRedirectAfterAuth(returnTo: string | null, fallback = "/dashboard") {
+function resolveRedirectAfterAuth(returnTo: string | null, fallback = "/kabinet") {
   if (returnTo?.startsWith("/") && !returnTo.startsWith("//")) {
     return returnTo;
   }
@@ -78,37 +69,6 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
       setError("Kiritilgan tasdiqlash kodi noto'g'ri.");
       setIsLoading(false);
       setOtp("");
-    }
-  };
-
-  const handleGuestLogin = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      await signIn("anonymous");
-      navigate(redirect);
-    } catch (error) {
-      console.error("Guest login error:", error);
-      setError("Mehmon sifatida kirish amalga oshmadi. Qaytadan urinib ko'ring.");
-      setIsLoading(false);
-    }
-  };
-
-  /** Google orqali kirish — OAuth consent sahifasiga yo'naltiradi. */
-  const handleGoogleLogin = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      await signIn("google");
-      // OAuth redirect bo'ladi — bu satr odatda ishga tushmaydi.
-    } catch (error) {
-      console.error("Google sign-in error:", error);
-      setError(
-        error instanceof Error && error.message.includes("Unknown provider")
-          ? "Google orqali kirish hali sozlanmagan — email bilan davom eting."
-          : "Google orqali kirish amalga oshmadi. Qaytadan urinib ko'ring.",
-      );
-      setIsLoading(false);
     }
   };
 
@@ -173,16 +133,15 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
           {step === "signIn" ? (
             <>
               <h2 className="text-2xl leading-8 font-semibold tracking-tight">
-                Turist hisobiga kiring
+                Hisobga kiring
               </h2>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                Email manzilingizni kiriting — tasdiqlash kodini yuboramiz. Hisobingiz bo'lmasa,
-                avtomatik yaratiladi va buyurtmalar, vaucherlar hamda AI dasturlar shu hisobda
-                saqlanadi.
+                Email yoki telefon raqamingizni kiriting — tasdiqlash kodini yuboramiz. Hisob
+                bo'lmasa avtomatik yaratiladi.
               </p>
               <form onSubmit={handleEmailSubmit} className="mt-8">
                 <label htmlFor="email" className="text-sm font-medium">
-                  Email
+                  Email yoki telefon raqam
                 </label>
                 <div className="relative mt-1.5">
                   <Mail
@@ -192,9 +151,9 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                   <Input
                     id="email"
                     name="email"
-                    type="email"
+                    type="text"
                     required
-                    placeholder="name@example.com"
+                    placeholder="name@example.com yoki +998 90 123 45 67"
                     autoComplete="email"
                     disabled={isLoading}
                     className="pl-9"
@@ -224,55 +183,14 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                 </div>
               </div>
 
-              <Button
-                type="button"
-                variant="outline"
-                size="lg"
-                className="w-full"
-                onClick={handleGoogleLogin}
-                disabled={isLoading}
-              >
-                <svg className="size-4" viewBox="0 0 24 24" aria-hidden="true">
-                  <path
-                    fill="currentColor"
-                    d="M21.35 11.1h-9.17v2.73h6.51c-.33 3.81-3.5 5.44-6.5 5.44C8.36 19.27 5 16.25 5 12c0-4.1 3.2-7.27 7.2-7.27 3.09 0 4.9 1.97 4.9 1.97L19 4.72S16.56 2 12.1 2C6.42 2 2.03 6.8 2.03 12c0 5.05 4.13 10 10.22 10 5.35 0 9.25-3.67 9.25-9.09 0-1.15-.15-1.81-.15-1.81Z"
-                  />
-                </svg>
-                Google bilan davom etish
-              </Button>
-
-              <Button
-                type="button"
-                variant="outline"
-                size="lg"
-                className="mt-2 w-full"
-                onClick={handleGuestLogin}
-                disabled={isLoading}
-              >
-                <UserRound className="size-4" aria-hidden="true" />
-                Mehmon sifatida davom etish
-              </Button>
-
-              <div className="mt-6 rounded-2xl border border-dashed bg-muted/40 p-4">
-                <p className="text-xs leading-5 font-semibold text-foreground">
-                  Xizmat ko'rsatuvchimisiz?
-                </p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                  Gid, transfer, hunarmand va mehmonxona egalari @{PARTNER_BOT_USERNAME} (auth bot)
-                  orqali ro'yxatdan o'tadi va o'z yo'nalishiga mos bot kabinetini oladi.
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Button variant="outline" size="sm" asChild>
-                    <Link to="/hamkorlar">Hamkorlik shartlari</Link>
+              <AuthChoiceDialog
+                trigger={
+                  <Button type="button" variant="outline" size="lg" className="w-full">
+                    <Send className="size-4" aria-hidden="true" />
+                    Telegram orqali kirish
                   </Button>
-                  <Button variant="ghost" size="sm" asChild>
-                    <a href={partnerBotLink()} target="_blank" rel="noreferrer">
-                      <Send className="size-3.5" aria-hidden="true" />
-                      Auth botni ochish
-                    </a>
-                  </Button>
-                </div>
-              </div>
+                }
+              />
 
               <p className="mt-8 text-center text-xs leading-5 text-muted-foreground">
                 Davom etish orqali{" "}
@@ -295,11 +213,11 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
           ) : (
             <>
               <h2 className="text-2xl leading-8 font-semibold tracking-tight">
-                Pochtangizni tekshiring
+                Kodni kiriting
               </h2>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                6 xonali kodni <span className="font-medium text-foreground">{step.email}</span>{" "}
-                manziliga yubordik.
+                6 xonali kod <span className="font-medium text-foreground">{step.email}</span>{" "}
+                manziliga yuborildi.
               </p>
               <form onSubmit={handleOtpSubmit} className="mt-8">
                 <input type="hidden" name="email" value={step.email} />

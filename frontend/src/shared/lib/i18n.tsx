@@ -32,7 +32,7 @@ const DICT = {
   },
   nav_partners: { uz: "Hamkorlik", ru: "Сотрудничество", en: "Partnership" },
   nav_signin: { uz: "Kirish", ru: "Войти", en: "Sign in" },
-  nav_account: { uz: "Kabinet", ru: "Кабинет", en: "Account" },
+  nav_account: { uz: "Profil", ru: "Профиль", en: "Profile" },
   nav_admin: { uz: "Admin", ru: "Админ", en: "Admin" },
   menu_label: { uz: "Xizmat ko'rsatuvchilar", ru: "Поставщики услуг", en: "Service providers" },
   menu_all: { uz: "Barcha mutaxassislarni ko'rish", ru: "Все специалисты", en: "All specialists" },

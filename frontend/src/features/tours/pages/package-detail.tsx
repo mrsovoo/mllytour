@@ -134,7 +134,7 @@ export default function PackageDetail() {
         note: addons.length > 0 ? `Qo'shimcha: ${addons.join(", ")}` : undefined,
       });
       toast.success(`Buyurtma qabul qilindi · ${result.reference}`);
-      navigate("/dashboard");
+      navigate("/kabinet");
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Buyurtmani yaratishda xatolik yuz berdi.",

@@ -88,7 +88,7 @@ export function ServiceOrderForm({
         note: form.note || undefined,
       });
       toast.success(`So'rov yuborildi · ${result.reference}`);
-      navigate("/dashboard?tab=history");
+      navigate("/kabinet?tab=history");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "So'rov yuborilmadi");
     } finally {

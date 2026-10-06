@@ -22,7 +22,7 @@ export function AuthChoiceDialog({ trigger }: { trigger: React.ReactNode }) {
         window.dispatchEvent(new Event("millytour:auth-change"));
         setStatus("idle");
         setOpen(false);
-        window.location.assign("/dashboard");
+        window.location.assign("/kabinet");
       } else if (data.status === "expired") {
         setStatus("error");
         setError("Tasdiqlash muddati tugadi. Qaytadan boshlang.");

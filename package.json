@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=20.19"
+  },
   "workspaces": [
     "frontend",
     "backend"
@@ -11,17 +14,18 @@
     "dev": "node backend/server/dev.mjs",
     "dev:admin": "node backend/server/dev.mjs --panel=admin",
     "dev:partner": "node backend/server/dev.mjs --panel=partner",
-    "dev:web": "npm run dev -w millytour-frontend",
+    "dev:web": "npm run dev -w millytour-tourist",
     "start:api": "npm run start -w millytour-backend",
     "seed": "npm run seed -w millytour-backend --",
     "bots": "npm run bots -w millytour-backend --",
-    "build": "npm run build -w millytour-frontend",
-    "typecheck": "npm run typecheck -w millytour-frontend",
-    "lint": "npm run lint -w millytour-frontend",
-    "preview": "npm run preview -w millytour-frontend",
+    "build": "npm run build -w millytour-tourist",
+    "typecheck": "npm run typecheck -w millytour-tourist",
+    "lint": "npm run lint -w millytour-tourist",
+    "preview": "npm run preview -w millytour-tourist",
     "format": "prettier --write .",
     "audit:ui": "node scripts/ui-audit.mjs",
     "audit:admin": "node scripts/ui-audit.mjs --admin --base=http://127.0.0.1:3000",
+    "audit:tourist": "node scripts/ui-audit.mjs --tourist --base=http://127.0.0.1:5173",
     "ai:setup": "node scripts/ai-setup.mjs"
   },
   "devDependencies": {

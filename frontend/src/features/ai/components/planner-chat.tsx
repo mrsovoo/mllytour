@@ -597,7 +597,7 @@ export function PlannerChat({ variant }: { variant: "widget" | "page" }) {
           `Bron tayyor: ${result.reference} ✅\n\n` +
           `Tanlangan xizmatlar bo'yicha mutaxassislar biriktirildi — vazifalar bot orqali ularga yuborildi. ` +
           `To'lov: $${result.totalPrice} (${result.paymentReference}).\n\n` +
-          `Kabinetda (/dashboard) holat va to'lovni kuzatishingiz mumkin.`,
+          `Kabinetda (/kabinet) holat va to'lovni kuzatishingiz mumkin.`,
       });
       toast.success(`Bron qabul qilindi · ${result.reference}`);
       void openCheckout(result.paymentId);
@@ -1357,7 +1357,7 @@ function BookingResultCard({
             To'lovni yakunlash
           </Button>
           <Button size="sm" variant="outline" asChild>
-            <Link to="/dashboard?tab=history">
+            <Link to="/kabinet?tab=history">
               Buyurtmalar tarixiga o'tish
               <ExternalLink className="size-3.5" aria-hidden="true" />
             </Link>
@@ -1546,7 +1546,7 @@ export function PlanResult({
             </Link>
           </Button>
           <Button size="sm" variant="outline" asChild>
-            <Link to={isAuthenticated ? "/dashboard" : "/auth?returnTo=%2Fdashboard"}>
+            <Link to={isAuthenticated ? "/kabinet" : "/auth?returnTo=%2Fkabinet"}>
               {isAuthenticated ? "Kabinetda saqlangan" : "Hisobga saqlash"}
               <ExternalLink className="size-3.5" aria-hidden="true" />
             </Link>

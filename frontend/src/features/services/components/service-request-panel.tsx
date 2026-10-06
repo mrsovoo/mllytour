@@ -81,7 +81,7 @@ export function ServiceRequestPanel({
         note: form.note || undefined,
       });
       toast.success(`So'rov yuborildi · ${result.reference}`);
-      navigate("/dashboard?tab=orders");
+      navigate("/kabinet?tab=orders");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "So'rov yuborilmadi");
     } finally {

@@ -292,7 +292,7 @@ export function SiteHeader() {
   const [open, setOpen] = useState(false);
   const { isAuthenticated, user } = useAuth();
   const { t } = useLang();
-  const cabinet = user?.role === "admin" ? "/admin" : "/dashboard";
+  const cabinet = user?.role === "admin" ? "/admin" : "/kabinet";
 
   /** Mobil menyu uchun oddiy havolalar (turlar alohida blok ko'rinishida chiqadi). */
   const navLinks = [
@@ -435,7 +435,7 @@ export function SiteHeader() {
               <div className="mt-auto flex flex-col gap-2 p-4">
                 {isAuthenticated ? (
                   <Button size="lg" asChild onClick={() => setOpen(false)}>
-                    <Link to={cabinet}>{user?.role === "admin" ? "Admin panel" : "Kabinetim"}</Link>
+                    <Link to={cabinet}>{user?.role === "admin" ? "Admin panel" : "Profilim"}</Link>
                   </Button>
                 ) : (
                   <>
@@ -464,7 +464,7 @@ export function SiteHeader() {
  */
 export function BottomNav() {
   const { isAuthenticated, user } = useAuth();
-  const cabinet = user?.role === "admin" ? "/admin" : "/dashboard";
+  const cabinet = user?.role === "admin" ? "/admin" : "/kabinet";
 
   const items: { to: string; label: string; icon: React.ElementType; primary?: boolean }[] = [
     { to: "/", label: "Asosiy", icon: Home },
@@ -473,7 +473,7 @@ export function BottomNav() {
     { to: "/hunarmandlar", label: "Bozor", icon: Store },
     {
       to: isAuthenticated ? cabinet : "/auth",
-      label: isAuthenticated ? "Kabinet" : "Kirish",
+      label: isAuthenticated ? "Profil" : "Kirish",
       icon: UserRound,
     },
   ];
@@ -534,7 +534,7 @@ const FOOTER_TRAVEL = [
   { label: "Xizmatlar", to: "/xizmatlar" },
   { label: "Hunarmandlar", to: "/hunarmandlar" },
   { label: "Hamkorlar", to: "/hamkorlar" },
-  { label: "Kabinetim", to: "/dashboard" },
+  { label: "Profilim", to: "/kabinet" },
 ];
 
 const FOOTER_SERVICES = [
@@ -550,7 +550,6 @@ const FOOTER_SERVICES = [
 const FOOTER_PARTNERS = [
   { label: "Hamkorlik shartlari", to: "/hamkorlar" },
   { label: "Hamkor paneli", to: "/partner" },
-  { label: "Admin paneli", to: "/admin" },
   { label: "Hujjatlar", to: "/hujjatlar" },
 ];
 

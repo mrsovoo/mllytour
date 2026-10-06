@@ -14,6 +14,8 @@ import { spawn } from "node:child_process";
 const BASE = process.argv.find((a) => a.startsWith("--base="))?.slice(7) ?? "http://127.0.0.1:5173";
 /** `--admin`: faqat admin panel oqimini tekshiradi (npm run audit:admin). */
 const ADMIN_MODE = process.argv.includes("--admin");
+/** `--tourist`: turist kabineti oqimini tekshiradi (npm run audit:tourist). */
+const TOURIST_MODE = process.argv.includes("--tourist");
 const PORT = 9333;
 const CHROME = process.env.CHROME_PATH || "google-chrome";
 
@@ -135,7 +137,9 @@ async function runAdminFlow(call) {
   // 3. Email OTP bilan kirish (dev rejimida kod javobda keladi)
   await goto("/auth?returnTo=%2Fadmin", 1600);
   const signin = await evaluate(`(async () => {
-    const email = "admin-audit@millytour.uz";
+    // Seed qilingan super admin emaili bilan kiriladi (bo'sh bazada hali admin
+    // yo'q — o'shanda "Administrator bo'lish" oqimi sinaladi).
+    const email = ${JSON.stringify(process.env.SEED_ADMIN_EMAIL || "admin@millytour.uz")};
     const request = await fetch("/api/auth/email/request", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -208,6 +212,169 @@ async function runAdminFlow(call) {
   if (!adminOk) {
     console.log(`  ekranda: ${panel.preview || "(bo'sh)"}`);
   }
+
+  return problems;
+}
+
+/**
+ * Turist oqimi auditi (`--tourist`, `npm run dev` yoniq bo'lishi kerak).
+ *
+ * Tekshiriladi: kirilmagan holatda `/kabinet` → `/auth`, eski `/dashboard`
+ * manzilining `/kabinet` orqali kirishga o'tishi, email OTP bilan kirish,
+ * turist kabineti bo'limlari ko'rinishi va turistga operator (`/admin`)
+ * bo'limining yopiqligi.
+ */
+async function runTouristFlow(call) {
+  let problems = 0;
+
+  const evaluate = async (expression) => {
+    const response = await call("Runtime.evaluate", {
+      returnByValue: true,
+      awaitPromise: true,
+      expression,
+    });
+    return response?.result?.result?.value ?? {};
+  };
+  const goto = async (path, ms = 2200) => {
+    await call("Page.navigate", { url: `${BASE}${path}` });
+    await wait(ms);
+  };
+
+  await call("Emulation.setDeviceMetricsOverride", {
+    width: 1440,
+    height: 900,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
+
+  console.log(`\nTurist oqimi auditi: ${BASE}/kabinet\n`);
+
+  // 1. Kirilmagan holatda himoya: /kabinet → /auth?returnTo=/kabinet
+  await goto("/kabinet");
+  const guard = await evaluate(`({ path: location.pathname, search: location.search })`);
+  const guardOk = guard.path === "/auth" && String(guard.search).includes("kabinet");
+  if (!guardOk) problems += 1;
+  console.log(
+    `Kirilmagan holat: /kabinet → ${guard.path}${guard.search ?? ""} → ` +
+      `${guardOk ? "kirish sahifasiga yo'naltirildi ✅" : "xato ❌"}`,
+  );
+
+  // 2. Eski /dashboard manzili kabinetga yo'naltiradi.
+  await goto("/dashboard");
+  const legacy = await evaluate(`({ path: location.pathname, search: location.search })`);
+  const legacyOk = legacy.path === "/auth" && String(legacy.search).includes("kabinet");
+  if (!legacyOk) problems += 1;
+  console.log(
+    `Eski manzil: /dashboard → ${legacy.path}${legacy.search ?? ""} → ` +
+      `${legacyOk ? "/kabinet orqali kirishga o'tdi ✅" : "xato ❌"}`,
+  );
+
+  // 3. Email OTP bilan kirish (dev rejimida kod javobda keladi).
+  await goto("/auth?returnTo=%2Fkabinet");
+  const signin = await evaluate(`(async () => {
+    const email = "tourist-audit@millytour.uz";
+    const request = await fetch("/api/auth/email/request", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email }),
+    }).then((r) => r.json());
+    if (!request.devCode) return { error: "devCode qaytmadi (SHOW_DEV_OTP=true kerak)" };
+    const verify = await fetch("/api/auth/email/verify", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ challengeId: request.challengeId, code: request.devCode }),
+    }).then((r) => r.json());
+    return { ok: Boolean(verify.ok), email: verify.user?.email ?? null };
+  })()`);
+  const signinOk = signin.ok === true;
+  if (!signinOk) problems += 1;
+  console.log(
+    `Email OTP bilan kirish: ${signin.email ?? signin.error ?? "—"} → ` +
+      `${signinOk ? "seans ochildi ✅" : "xato ❌"}`,
+  );
+
+  // 4. Turist kabineti bo'limlari ochiladi.
+  await goto("/kabinet");
+  const cabinet = await evaluate(`(async () => {
+    const text = document.body.innerText;
+    const tabs = ["Buyurtmalar", "Tarix", "Reja", "Profil"];
+    return {
+      path: location.pathname,
+      isTourist: text.toLowerCase().includes("sayohatchi profili"),
+      tabs: tabs.filter((tab) => text.includes(tab)).length,
+    };
+  })()`);
+  const cabinetOk = cabinet.path === "/kabinet" && cabinet.isTourist && (cabinet.tabs ?? 0) >= 4;
+  if (!cabinetOk) problems += 1;
+  console.log(
+    `Turist kabineti: /kabinet, turist paneli=${cabinet.isTourist}, bo'limlar=${cabinet.tabs}/4 → ` +
+      `${cabinetOk ? "ochildi ✅" : "ochilmadi ❌"}`,
+  );
+
+  // 4b. Qo'llab-quvvatlash chat oynasi ochiladi.
+  const support = await evaluate(`(async () => {
+    const trigger = [...document.querySelectorAll("button, a")].find((el) =>
+      (el.getAttribute("aria-label") || "").includes("bog'lanish"),
+    );
+    if (!trigger) return { found: false };
+    trigger.click();
+    await new Promise((r) => setTimeout(r, 800));
+    const panel = [...document.querySelectorAll("section")].find((el) =>
+      (el.getAttribute("aria-label") || "").toLowerCase().includes("quvvatlash"),
+    );
+    return {
+      found: true,
+      open: Boolean(panel),
+      hasInput: Boolean(panel && panel.querySelector("textarea")),
+    };
+  })()`);
+  const supportOk = support.found && support.open && support.hasInput;
+  if (!supportOk) problems += 1;
+  console.log(
+    `Support chat: tugma=${support.found}, oyna=${support.open}, matn maydoni=${support.hasInput} → ` +
+      `${supportOk ? "ochildi ✅" : "ochilmadi ❌"}`,
+  );
+
+  // 4c. Xabar yuboriladi va avtomatik javob qaytadi.
+  const supportSend = await evaluate(`(async () => {
+    const sendResponse = await fetch("/api/support/send", {
+      method: "POST",
+      credentials: "include",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text: "Audit: yordam kerak" }),
+    }).then((r) => r.json());
+    const thread = await fetch("/api/support/thread", { credentials: "include" }).then((r) =>
+      r.json(),
+    );
+    const messages = thread.messages || [];
+    return {
+      ok: Boolean(sendResponse.ok),
+      count: messages.length,
+      hasSupport: messages.some((m) => m.role === "support"),
+    };
+  })()`);
+  const supportSendOk = supportSend.ok && (supportSend.count ?? 0) >= 2 && supportSend.hasSupport;
+  if (!supportSendOk) problems += 1;
+  console.log(
+    `Support suhbat: xabar yuborildi=${supportSend.ok}, xabarlar=${supportSend.count}, javob=${supportSend.hasSupport} → ` +
+      `${supportSendOk ? "ishlayapti ✅" : "xato ❌"}`,
+  );
+
+  // 5. Turist operator bo'limiga kira olmaydi: /admin panel ochilmaydi.
+  await goto("/admin");
+  const operator = await evaluate(`(async () => {
+    const text = document.body.innerText;
+    return {
+      path: location.pathname,
+      panelOpen: text.includes("Umumiy ko'rsatkichlar") && text.includes("Bot sozlamalari"),
+    };
+  })()`);
+  const operatorOk = operator.panelOpen === false;
+  if (!operatorOk) problems += 1;
+  console.log(
+    `Operator bo'limi himoyasi: /admin → ${operator.path}, panel ochildi=${operator.panelOpen} → ` +
+      `${operatorOk ? "turistga yopiq ✅" : "OCHIQ ❌"}`,
+  );
 
   return problems;
 }
@@ -285,6 +452,16 @@ async function main() {
       adminProblems === 0 ? "\nAdmin oqimi toza ✅" : `\n${adminProblems} ta muammo topildi ❌`,
     );
     process.exit(adminProblems === 0 ? 0 : 1);
+  }
+
+  if (TOURIST_MODE) {
+    const touristProblems = await runTouristFlow(call);
+    ws.close();
+    cleanup();
+    console.log(
+      touristProblems === 0 ? "\nTurist oqimi toza ✅" : `\n${touristProblems} ta muammo topildi ❌`,
+    );
+    process.exit(touristProblems === 0 ? 0 : 1);
   }
 
   let problems = 0;

@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
   "installCommand": "npm install",
-  "buildCommand": "npm run build -w millytour-frontend",
+  "buildCommand": "npm run build -w millytour-tourist",
   "outputDirectory": "frontend/dist",
   "rewrites": [
     {

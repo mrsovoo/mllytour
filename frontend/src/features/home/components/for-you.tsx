@@ -101,7 +101,7 @@ export function ForYouRow({ className }: { className?: string }) {
                   {(chosen.cities ?? []).join(" · ")}
                 </p>
                 <Button size="sm" variant="outline" className="mt-auto w-full" asChild>
-                  <Link to="/dashboard?tab=plans">Dasturni ochish</Link>
+                  <Link to="/kabinet?tab=plans">Dasturni ochish</Link>
                 </Button>
               </motion.article>
             );

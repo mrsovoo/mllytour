@@ -1,47 +1,32 @@
 import '@vly-ai/integrations';
 import { Toaster } from "@/shared/components/ui/sonner";
-import { RequireAuth } from "@/features/auth/components/require-auth";
 import { VlyToolbar } from "../../vly-toolbar-readonly.tsx";
 import { AiAssistant } from "@/features/ai/components/ai-assistant";
 import { ScrollToTop } from "@/shared/components/scroll-to-top";
 import { OnboardingGate } from "@/features/auth/components/onboarding-gate";
-import { SiteLayout } from "@/shared/components/site";
-import React, { StrictMode, useEffect, lazy, Suspense } from "react";
+import React, { StrictMode, useEffect, Suspense } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router";
+import { BrowserRouter, Routes, useLocation } from "react-router";
 import { LangProvider } from "@/shared/lib/i18n";
+import { touristRoutes } from "@/app/routes/tourist";
+import { partnerRoutes } from "@/app/routes/partner";
+import { adminRoutes } from "@/app/routes/admin";
 import "./index.css";
 
 /**
  * Panel rejimi.
  *
  * - `admin`   — `npm run dev:admin` (:3000) va millytour-adm.* domeni: faqat
- *   `/admin` hamda `/auth`.
- * - `partner` — `npm run dev:partner` (:3001): faqat `/partner` hamda `/auth`.
- * - `public`  — oddiy sayt (default).
+ *   `/admin` hamda `/auth` (`app/routes/admin.tsx`).
+ * - `partner` — `npm run dev:partner` (:3001): faqat `/partner` va `/auth`
+ *   (`app/routes/partner.tsx`).
+ * - `public`  — turist sayti va kabineti (`app/routes/tourist.tsx`).
  *
- * Qolgan barcha manzillar tanlangan panelga yo'naltiriladi.
+ * Har bir rol o'z route daraxtiga ega; `main.tsx` faqat rejimga qarab
+ * kerakli daraxtni tanlaydi.
  */
 const APP_PANEL =
   import.meta.env.VITE_APP_PANEL ?? (import.meta.env.VITE_ADMIN_ONLY === "1" ? "admin" : "public");
-
-// Lazy load route components for better code splitting
-const Landing = lazy(() => import("@/features/home/pages/landing.tsx"));
-const Packages = lazy(() => import("@/features/tours/pages/packages.tsx"));
-const PackageDetail = lazy(() => import("@/features/tours/pages/package-detail.tsx"));
-const Destinations = lazy(() => import("@/features/destinations/pages/destinations.tsx"));
-const Deals = lazy(() => import("@/features/tours/pages/deals.tsx"));
-const Documents = lazy(() => import("@/features/documents/pages/documents.tsx"));
-const DestinationDetail = lazy(() => import("@/features/destinations/pages/destination-detail.tsx"));
-const Marketplace = lazy(() => import("@/features/marketplace/pages/marketplace.tsx"));
-const Services = lazy(() => import("@/features/services/pages/services.tsx"));
-const ServiceDetail = lazy(() => import("@/features/services/pages/service-detail.tsx"));
-const Partners = lazy(() => import("@/features/partners/pages/partners.tsx"));
-const AuthPage = lazy(() => import("@/features/auth/pages/auth.tsx"));
-const Dashboard = lazy(() => import("@/features/account/pages/dashboard.tsx"));
-const Partner = lazy(() => import("@/features/partners/pages/partner.tsx"));
-const Admin = lazy(() => import("@/features/admin/pages/admin.tsx"));
-const NotFound = lazy(() => import("@/app/pages/not-found.tsx"));
 
 // Simple loading fallback for route transitions
 function RouteLoading() {
@@ -50,11 +35,6 @@ function RouteLoading() {
       <div className="animate-pulse text-muted-foreground">Loading...</div>
     </div>
   );
-}
-
-/** Public sahifalar umumiy header va footer ichida ko'rsatiladi. */
-function Public({ children }: { children: React.ReactNode }) {
-  return <SiteLayout>{children}</SiteLayout>;
 }
 
 /** Silent error boundary — if VlyToolbar crashes it renders nothing instead of
@@ -150,58 +130,11 @@ root.render(
             <RouteSyncer />
             <Suspense fallback={<RouteLoading />}>
               <Routes>
-                {APP_PANEL === "admin" ? (
-                  <>
-                    <Route
-                      path="/auth"
-                      element={<AuthPage redirectAfterAuth="/admin" />}
-                    />
-                    <Route
-                      path="/admin"
-                      element={
-                        <RequireAuth>
-                          <Admin />
-                        </RequireAuth>
-                      }
-                    />
-                    <Route path="*" element={<Navigate to="/admin" replace />} />
-                  </>
-                ) : APP_PANEL === "partner" ? (
-                  <>
-                    <Route
-                      path="/auth"
-                      element={<AuthPage redirectAfterAuth="/partner" />}
-                    />
-                    <Route
-                      path="/partner"
-                      element={
-                        <RequireAuth>
-                          <Partner />
-                        </RequireAuth>
-                      }
-                    />
-                    <Route path="*" element={<Navigate to="/partner" replace />} />
-                  </>
-                ) : (
-                  <>
-                    <Route path="/" element={<Public><Landing /></Public>} />
-                    <Route path="/paketlar" element={<Public><Packages /></Public>} />
-                    <Route path="/paketlar/:slug" element={<Public><PackageDetail /></Public>} />
-                    <Route path="/shaharlar" element={<Public><Destinations /></Public>} />
-                    <Route path="/takliflar" element={<Public><Deals /></Public>} />
-                    <Route path="/shaharlar/:slug" element={<Public><DestinationDetail /></Public>} />
-                    <Route path="/xizmatlar" element={<Public><Services /></Public>} />
-                    <Route path="/xizmatlar/:service" element={<Public><ServiceDetail /></Public>} />
-                    <Route path="/hunarmandlar" element={<Public><Marketplace /></Public>} />
-                    <Route path="/hamkorlar" element={<Public><Partners /></Public>} />
-                    <Route path="/hujjatlar" element={<Public><Documents /></Public>} />
-                    <Route path="/auth" element={<AuthPage redirectAfterAuth="/dashboard" />} />
-                    <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
-                    <Route path="/partner" element={<RequireAuth><Partner /></RequireAuth>} />
-                    <Route path="/admin" element={<RequireAuth><Admin /></RequireAuth>} />
-                    <Route path="*" element={<Public><NotFound /></Public>} />
-                  </>
-                )}
+                {APP_PANEL === "admin"
+                  ? adminRoutes()
+                  : APP_PANEL === "partner"
+                    ? partnerRoutes()
+                    : touristRoutes()}
               </Routes>
             </Suspense>
             <ScrollToTop />

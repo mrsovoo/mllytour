@@ -50,7 +50,8 @@ const corsOrigins = (process.env.CORS_ORIGIN || "")
   .filter(Boolean);
 app.use(cors({ origin: corsOrigins.length ? corsOrigins : true, credentials: true }));
 app.use(cookieParser());
-app.use(express.json({ limit: "1mb" }));
+// Rasm biriktirmalar data-URL ko'rinishida keladi — limit biroz katta.
+app.use(express.json({ limit: "4mb" }));
 
 function json(value) { try { return JSON.parse(value); } catch { return value; } }
 /**
@@ -93,11 +94,22 @@ async function userByEmail(email) {
   return db.get("SELECT * FROM users WHERE email = ?", email.toLowerCase());
 }
 
+async function userByPhone(phone) {
+  return db.get("SELECT * FROM users WHERE phone = ?", phone);
+}
+
+/** Telefon raqamini yagona ko'rinishga keltiradi (faqat raqamlar). */
+function normalizePhone(value) { return String(value || "").replace(/\D/g, ""); }
+
+/** Identifikator email bo'lsa — email bo'yicha, aks holda telefon bo'yicha qidiradi. */
 async function ensureUser({ email, name, isAnonymous = false, telegramId, telegramUsername }) {
-  let user = await userByEmail(email);
+  const identifier = String(email || "").trim().toLowerCase();
+  const isPhone = Boolean(identifier) && !identifier.includes("@") && /\d/.test(identifier);
+  const phone = isPhone ? normalizePhone(identifier) : null;
+  let user = isPhone ? await userByPhone(phone) : await userByEmail(identifier);
   if (!user) {
     const id = randomUUID();
-    await db.run("INSERT INTO users (id,email,name,is_anonymous,telegram_id,telegram_username) VALUES (?, ?, ?, ?, ?, ?)", id, email.toLowerCase(), name || "Millytour sayohatchisi", isAnonymous ? 1 : 0, telegramId || null, telegramUsername || null);
+    await db.run("INSERT INTO users (id,email,name,is_anonymous,phone,telegram_id,telegram_username) VALUES (?, ?, ?, ?, ?, ?, ?)", id, isPhone ? null : identifier, name || "Millytour sayohatchisi", isAnonymous ? 1 : 0, phone, telegramId || null, telegramUsername || null);
     user = await db.get("SELECT * FROM users WHERE id = ?", id);
   } else if (telegramId) {
     await db.run("UPDATE users SET telegram_id = ?, telegram_username = ?, name = COALESCE(?, name), is_anonymous = 0 WHERE id = ?", telegramId, telegramUsername || null, name || null, user.id);
@@ -118,6 +130,62 @@ async function record(kind, data, userId = null) { const id = randomUUID(); awai
 async function records(kind, userId) { const rows = userId === undefined ? await db.all("SELECT * FROM records WHERE kind = ? ORDER BY created_at DESC", kind) : await db.all("SELECT * FROM records WHERE kind = ? AND user_id = ? ORDER BY created_at DESC", kind, userId); return rows.map((row) => ({ _id: row.id, createdAt: row.created_at, ...json(row.data) })); }
 async function updateRecord(id, patch) { const row = await db.get("SELECT * FROM records WHERE id = ?", id); if (!row) throw new Error("Yozuv topilmadi"); const next = { ...json(row.data), ...patch }; await db.run("UPDATE records SET data = ? WHERE id = ?", JSON.stringify(next), id); return { _id: id, createdAt: row.created_at, ...next }; }
 async function removeRecord(id) { await db.run("DELETE FROM records WHERE id = ?", id); return { ok: true }; }
+
+/**
+ * Qo'llab-quvvatlash (support) suhbati.
+ *
+ * Xabarlar `support_message` turidagi yozuvlar sifatida saqlanadi va foydalanuvchi
+ * id'si bilan bog'lanadi (thread = user._id). Rasm biriktirma data-URL sifatida
+ * yozuvga qo'shiladi (limit: 4mb JSON).
+ */
+async function supportThread(userId) {
+  const rows = await records("support_message", userId);
+  // `records` eng yangisini birinchi qaytaradi — suhbat uchun eskisini birinchi qilamiz.
+  return rows.slice().sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0));
+}
+
+function supportAttachment(value) {
+  if (!value || typeof value !== "object") return null;
+  const dataUrl = String(value.dataUrl || "");
+  if (!dataUrl.startsWith("data:image/")) return null;
+  return {
+    name: String(value.name || "rasm").slice(0, 120),
+    type: String(value.type || "image/jpeg").slice(0, 60),
+    dataUrl: dataUrl.slice(0, 3_000_000),
+  };
+}
+
+async function supportSend(user, args = {}) {
+  const text = String(args.text || "").trim().slice(0, 4000);
+  const attachment = supportAttachment(args.attachment);
+  if (!text && !attachment) throw new Error("Xabar bo'sh");
+  const message = await record("support_message", {
+    threadId: user._id,
+    role: "user",
+    authorName: user.name || "Sayohatchi",
+    text,
+    attachment,
+    replyTo: args.replyTo
+      ? { _id: String(args.replyTo._id || ""), text: String(args.replyTo.text || "").slice(0, 300) }
+      : null,
+    createdAt: Date.now(),
+  }, user._id);
+  // Operator hali javob bermagan bo'lsa, avtomatik tasdiq yuboriladi.
+  const replies = await records("support_message", user._id);
+  if (!replies.some((row) => row.role === "support")) {
+    await record("support_message", {
+      threadId: user._id,
+      role: "support",
+      authorName: "Millytour",
+      text: "Xabaringiz qabul qilindi. Operator tez orada javob beradi — shu chatda davom etamiz.",
+      attachment: null,
+      replyTo: null,
+      automated: true,
+      createdAt: Date.now() + 1,
+    }, user._id);
+  }
+  return message;
+}
 /** Mijozlar fikri reaksiyasi: faqat 👍 / 👎 bo'ladi. */
 function reactionKind(row) { return row.kind === "dislike" ? "dislike" : "like"; }
 /** Eski `review_like` yozuvlari ham "like" sifatida o'qiladi (moslik uchun). */
@@ -379,6 +447,27 @@ async function dispatch(module, operation, args, req) {
   if (module === "plans" && operation === "mine") return await records("plan", userId);
   if (module === "plans" && operation === "latestBySession") return (await records("plan")).find((item) => item.sessionKey === args.sessionKey) || null;
   if (module === "plans" && operation === "choose") return { ok: true, chosenIndex: args.chosenIndex };
+  // Shaxsiy sayohat rejalari — foydalanuvchi o'zi yozib qo'yadigan kelgusi safarlar.
+  if (module === "tripPlans" && operation === "mine") return await records("trip_plan", userId);
+  if (module === "tripPlans" && operation === "create") {
+    const authUser = await requireUser(req);
+    if (!String(args.title || "").trim()) throw new Error("Reja nomini kiriting");
+    return await record("trip_plan", {
+      title: String(args.title).trim().slice(0, 120),
+      city: String(args.city || "").trim().slice(0, 80),
+      startDate: args.startDate || null,
+      endDate: args.endDate || null,
+      notes: String(args.notes || "").trim().slice(0, 2000),
+      status: "upcoming",
+      createdAt: Date.now(),
+    }, authUser._id);
+  }
+  if (module === "tripPlans" && operation === "remove") {
+    const authUser = await requireUser(req);
+    const mine = await records("trip_plan", authUser._id);
+    if (!mine.some((row) => row._id === args.planId)) throw new Error("Reja topilmadi");
+    return await removeRecord(args.planId);
+  }
   if (module === "providers" && operation === "list") {
     const rows = await records("provider");
     return rows.filter((provider) => (!args.status || provider.status === args.status) && (!args.direction || provider.direction === args.direction));
@@ -694,18 +783,21 @@ async function dispatch(module, operation, args, req) {
 app.get("/api/health", (_, res) => res.json({ ok: true, service: "millytour-local-backend", database: "sqlite" }));
 app.post("/api/auth/signin", async (req, res) => { try { const provider = String(req.body?.provider || "anonymous"); const email = req.body?.email ? String(req.body.email).toLowerCase() : `${provider}-${randomUUID()}@local.test`; let user = await db.get("SELECT * FROM users WHERE email = ?", email); if (!user) { const id = randomUUID(); await db.run("INSERT INTO users (id,email,name,is_anonymous) VALUES (?, ?, ?, ?)", id, email, req.body?.name || "Local Demo User", provider === "anonymous" ? 1 : 0); user = await db.get("SELECT * FROM users WHERE id = ?", id); } const sessionId = randomUUID(); await db.run("INSERT INTO sessions (id,user_id,created_at,expires_at) VALUES (?, ?, ?, ?)", sessionId, user.id, Date.now(), Date.now() + 7 * 24 * 60 * 60 * 1000); res.cookie("millytour_session", sessionId, cookieOptions(req)); res.json({ ok: true, user: await currentUser({ cookies: { millytour_session: sessionId } }) }); } catch (error) { res.status(400).json({ error: error.message }); } });
 app.post("/api/auth/email/request", async (req, res) => {
-  const email = String(req.body?.email || "").trim().toLowerCase();
-  if (!email || !email.includes("@")) return res.status(400).json({ error: "Email manzili noto'g'ri" });
+  // Identifikator sifatida email yoki telefon raqam qabul qilinadi.
+  const identifier = String(req.body?.email || "").trim().toLowerCase();
+  const isEmail = identifier.includes("@");
+  const isPhone = /^[+\d][\d\s()-]{6,}$/.test(identifier);
+  if (!identifier || (!isEmail && !isPhone)) return res.status(400).json({ error: "Email yoki telefon raqamni kiriting" });
   const code = String(Math.floor(100000 + Math.random() * 900000));
   const id = randomUUID();
-  await db.run("INSERT INTO auth_challenges (id,type,identifier,code,status,created_at,expires_at) VALUES (?, 'email', ?, ?, 'pending', ?, ?)", id, email, code, Date.now(), challengeExpiry());
-  if (process.env.NODE_ENV !== "production") console.log(`[auth] local email OTP for ${email}: ${code}`);
-  res.json({ challengeId: id, email, ...(process.env.SHOW_DEV_OTP === "true" || process.env.NODE_ENV !== "production" ? { devCode: code } : {}) });
+  await db.run("INSERT INTO auth_challenges (id,type,identifier,code,status,created_at,expires_at) VALUES (?, 'email', ?, ?, 'pending', ?, ?)", id, identifier, code, Date.now(), challengeExpiry());
+  if (process.env.NODE_ENV !== "production") console.log(`[auth] local OTP for ${identifier}: ${code}`);
+  res.json({ challengeId: id, identifier, email: identifier, ...(process.env.SHOW_DEV_OTP === "true" || process.env.NODE_ENV !== "production" ? { devCode: code } : {}) });
 });
 app.post("/api/auth/email/verify", async (req, res) => {
   const challenge = await db.get("SELECT * FROM auth_challenges WHERE id = ? AND type = 'email' AND expires_at > ?", req.body?.challengeId, Date.now());
   if (!challenge || challenge.code !== String(req.body?.code || "")) return res.status(401).json({ error: "Tasdiqlash kodi noto'g'ri yoki muddati tugagan" });
-  const user = await ensureUser({ email: challenge.identifier, name: challenge.identifier.split("@")[0] });
+  const user = await ensureUser({ email: challenge.identifier, name: challenge.identifier.includes("@") ? challenge.identifier.split("@")[0] : undefined });
   await db.run("UPDATE auth_challenges SET status = 'verified', user_id = ? WHERE id = ?", user.id, challenge.id);
   const sessionId = await createSession(user.id, res, req);
   res.json({ ok: true, user: await currentUser({ cookies: { millytour_session: sessionId } }) });
@@ -734,6 +826,24 @@ app.get("/api/auth/telegram/status", async (req, res) => {
 });
 app.post("/api/auth/signout", async (req, res) => { if (req.cookies.millytour_session) await db.run("DELETE FROM sessions WHERE id = ?", req.cookies.millytour_session); res.clearCookie("millytour_session", cookieOptions(req)); res.json({ ok: true }); });
 app.get("/api/auth/me", async (req, res) => res.json({ user: await currentUser(req) }));
+// Qo'llab-quvvatlash suhbati — faqat kirgan foydalanuvchi uchun.
+app.get("/api/support/thread", async (req, res) => {
+  try {
+    const user = await requireUser(req);
+    res.json({ messages: await supportThread(user._id), name: user.name || null });
+  } catch (error) {
+    res.status(error.message === "Authentication required" ? 401 : 400).json({ error: error.message || "Request failed" });
+  }
+});
+app.post("/api/support/send", async (req, res) => {
+  try {
+    const user = await requireUser(req);
+    const message = await supportSend(user, req.body || {});
+    res.json({ ok: true, message });
+  } catch (error) {
+    res.status(error.message === "Authentication required" ? 401 : 400).json({ error: error.message || "Request failed" });
+  }
+});
 app.post("/api/rest/:module/:operation", async (req, res) => { try { res.json({ data: await dispatch(req.params.module, req.params.operation, req.body || {}, req) }); } catch (error) { res.status(error.message === "Authentication required" ? 401 : 400).json({ error: error.message || "Request failed" }); } });
 
 /**
