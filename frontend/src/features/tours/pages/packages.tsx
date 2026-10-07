@@ -30,10 +30,8 @@ import { PriceInline } from "@/shared/lib/currency";
 import {
   CITIES,
   DURATIONS,
-  PARTNER_BOT_USERNAME,
   SERVICES,
   TOUR_CATEGORIES,
-  partnerBotLink,
   type CategoryId,
   type ServiceId,
 } from "@/shared/data/catalog";
@@ -520,14 +518,12 @@ export default function Packages() {
                 </h3>
                 <p className="text-sm leading-6 text-muted-foreground">
                   Gid, transfer, restoran, tarjimon, fotograf, hunarmand, mehmonxona yoki boshqa
-                  turizm xizmati egasi bo'lsangiz — {PARTNER_BOT_USERNAME} orqali ro'yxatdan o'tib,
-                  o'z
+                  turizm xizmati egasi bo'lsangiz — Telegram bot orqali ro'yxatdan o'tib, o'z
                   boshqaruv panelingizni oling.
                 </p>
+                {/* Navbardagi «Hamkorlik» bilan bir xil sahifaga olib boradi. */}
                 <Button variant="outline" className="mt-1 self-start" asChild>
-                  <a href={partnerBotLink()} target="_blank" rel="noreferrer">
-                    Hamkor bo'lish
-                  </a>
+                  <Link to="/hamkorlar">Hamkor bo'lish</Link>
                 </Button>
               </CardContent>
             </Card>

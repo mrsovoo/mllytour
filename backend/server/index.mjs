@@ -109,7 +109,7 @@ async function ensureUser({ email, name, isAnonymous = false, telegramId, telegr
   let user = isPhone ? await userByPhone(phone) : await userByEmail(identifier);
   if (!user) {
     const id = randomUUID();
-    await db.run("INSERT INTO users (id,email,name,is_anonymous,phone,telegram_id,telegram_username) VALUES (?, ?, ?, ?, ?, ?, ?)", id, isPhone ? null : identifier, name || "Millytour sayohatchisi", isAnonymous ? 1 : 0, phone, telegramId || null, telegramUsername || null);
+    await db.run("INSERT INTO users (id,email,name,is_anonymous,phone,telegram_id,telegram_username) VALUES (?, ?, ?, ?, ?, ?, ?)", id, isPhone ? null : identifier, name || "MillyTour sayohatchisi", isAnonymous ? 1 : 0, phone, telegramId || null, telegramUsername || null);
     user = await db.get("SELECT * FROM users WHERE id = ?", id);
   } else if (telegramId) {
     await db.run("UPDATE users SET telegram_id = ?, telegram_username = ?, name = COALESCE(?, name), is_anonymous = 0 WHERE id = ?", telegramId, telegramUsername || null, name || null, user.id);
@@ -130,6 +130,9 @@ async function record(kind, data, userId = null) { const id = randomUUID(); awai
 async function records(kind, userId) { const rows = userId === undefined ? await db.all("SELECT * FROM records WHERE kind = ? ORDER BY created_at DESC", kind) : await db.all("SELECT * FROM records WHERE kind = ? AND user_id = ? ORDER BY created_at DESC", kind, userId); return rows.map((row) => ({ _id: row.id, createdAt: row.created_at, ...json(row.data) })); }
 async function updateRecord(id, patch) { const row = await db.get("SELECT * FROM records WHERE id = ?", id); if (!row) throw new Error("Yozuv topilmadi"); const next = { ...json(row.data), ...patch }; await db.run("UPDATE records SET data = ? WHERE id = ?", JSON.stringify(next), id); return { _id: id, createdAt: row.created_at, ...next }; }
 async function removeRecord(id) { await db.run("DELETE FROM records WHERE id = ?", id); return { ok: true }; }
+
+/** Taassurot kayfiyati — frontenddagi tanlov bilan bir xil ro'yxat. */
+const IMPRESSION_MOODS = ["great", "happy", "calm", "adventurous", "tired"];
 
 /**
  * Qo'llab-quvvatlash (support) suhbati.
@@ -176,7 +179,7 @@ async function supportSend(user, args = {}) {
     await record("support_message", {
       threadId: user._id,
       role: "support",
-      authorName: "Millytour",
+      authorName: "MillyTour",
       text: "Xabaringiz qabul qilindi. Operator tez orada javob beradi — shu chatda davom etamiz.",
       attachment: null,
       replyTo: null,
@@ -201,6 +204,88 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 /** Hamkor yo'nalishlari (`frontend/src/shared/data/catalog.ts` dagi PARTNER_DIRECTIONS bilan bir xil). */
 const PROVIDER_DIRECTIONS = ["guide", "transfer", "artisan", "hotel", "translator", "photographer", "restaurant", "other"];
 const PROVIDER_LABELS = { guide: "Gid", transfer: "Transfer", artisan: "Hunarmand", hotel: "Mehmonxona", translator: "Tarjimon", photographer: "Fotograf", restaurant: "Restoran / oshxona", other: "Boshqa turizm xizmati" };
+/**
+ * Yo'nalish bo'yicha oylik obuna narxi (USD).
+ * Frontenddagi `PARTNER_DIRECTIONS` bilan bir xil bo'lishi shart — provider
+ * yozuvining `monthlyFee` maydoni shu jadvaldan to'ldiriladi.
+ */
+const PROVIDER_FEES = { guide: 29, transfer: 39, artisan: 19, hotel: 49, translator: 25, photographer: 25, restaurant: 29, other: 15 };
+
+/** Yo'nalishni tekshirib, provider yozuvining umumiy maydonlarini tayyorlaydi. */
+function providerPayload(args = {}) {
+  const direction = PROVIDER_DIRECTIONS.includes(args.direction) ? args.direction : "other";
+  return {
+    direction,
+    businessName: String(args.businessName || "").trim().slice(0, 160) || "MillyTour hamkori",
+    city: String(args.city || "").trim().slice(0, 80),
+    phone: String(args.phone || "").trim().slice(0, 40),
+    telegramUsername: args.telegramUsername ? String(args.telegramUsername).replace(/^@/, "").slice(0, 60) : null,
+    telegramId: args.telegramId ?? null,
+    about: String(args.about || "").trim().slice(0, 1500),
+    experienceYears: Number(args.experienceYears) || 0,
+    languages: Array.isArray(args.languages) ? args.languages.slice(0, 8) : [],
+    directionAnswers: args.directionAnswers && typeof args.directionAnswers === "object" ? args.directionAnswers : {},
+    monthlyFee: PROVIDER_FEES[direction] ?? PROVIDER_FEES.other,
+  };
+}
+
+/**
+ * Hamkor profilini yaratadi — sayt (`providers.register`) va bot wizard'i shu
+ * yo'ldan foydalanadi, shunda ikkalasida maydonlar bir xil to'ladi.
+ */
+async function createProvider(userId, args = {}) {
+  return await record(
+    "provider",
+    {
+      userId,
+      email: args.email || null,
+      ...providerPayload(args),
+      // Botdagi "band / bo'sh" ko'rsatkichi — slot ochish-yopish shunga tayanadi.
+      availability: "available",
+      status: "pending",
+      subscription: "trial",
+      rating: 0,
+      ratingCount: 0,
+      completedOrders: 0,
+      walletBalance: 0,
+      createdAt: Date.now(),
+    },
+    userId,
+  );
+}
+
+/**
+ * Hamkor ko'rsatkichlari: profil, ochiq so'rovlar va biriktirilgan buyurtmalar.
+ * Saytdagi `/partner` paneli ham, bot menyusi ham bir xil hisobdan foydalanadi.
+ */
+async function providerMetrics(userId) {
+  const provider = (await records("provider", userId))[0] || null;
+  if (!provider) return { provider: null, open: [], assigned: [], completed: 0, tasks: [], upcomingTasks: [], taskEarnings: 0, revenue: 0, commission: 0, payout: 0 };
+  const [bookings, assignments] = await Promise.all([records("booking"), records("assignment")]);
+  const mine = assignments.filter((task) => task.providerId === provider._id || task.providerUserId === userId);
+  const takenIds = new Set(assignments.map((task) => task.bookingId));
+  const sameCity = (booking) => String(booking.city || "").toLowerCase().includes(String(provider.city || "").toLowerCase()) && String(provider.city || "").length > 0;
+  const open = bookings
+    .filter((booking) => booking.status === "pending" && !takenIds.has(booking._id))
+    .sort((a, b) => Number(sameCity(b)) - Number(sameCity(a)) || Number(b.createdAt || 0) - Number(a.createdAt || 0))
+    .slice(0, 12);
+  const myBookingIds = new Set(mine.map((task) => task.bookingId));
+  const assigned = bookings.filter((booking) => myBookingIds.has(booking._id) && booking.status !== "cancelled");
+  const revenue = assigned.filter((booking) => booking.status !== "pending").reduce((sum, booking) => sum + Number(booking.totalPrice || 0), 0);
+  const commission = Math.round(revenue * COMMISSION_RATE);
+  return {
+    provider,
+    open,
+    assigned,
+    completed: mine.filter((task) => task.status === "done").length,
+    tasks: mine,
+    upcomingTasks: mine.filter((task) => Number(task.scheduledFor || 0) >= Date.now() && task.status !== "done").sort((a, b) => Number(a.scheduledFor || 0) - Number(b.scheduledFor || 0)),
+    taskEarnings: mine.filter((task) => task.status === "done").reduce((sum, task) => sum + Number(task.amount || 0), 0),
+    revenue,
+    commission,
+    payout: revenue - commission,
+  };
+}
 const UZ_MONTHS = ["yanvar", "fevral", "mart", "aprel", "may", "iyun", "iyul", "avgust", "sentabr", "oktabr", "noyabr", "dekabr"];
 
 /** Katalogdagi tur paketni paket ko'rinishiga (PackageView) keltiradi. */
@@ -370,7 +455,21 @@ async function createBooking(args, req, user) {
  * Telegram botlari uchun kontekst — bot dvigateli shu obyekt orqali bazaga
  * va biznes-mantiqqa ulanadi (webhook ham, simulyatsiya ham bir xil ishlaydi).
  */
-const telegramCtx = { db, record, records, ensureUser, overview: adminOverview };
+const telegramCtx = {
+  db,
+  record,
+  records,
+  updateRecord,
+  removeRecord,
+  ensureUser,
+  overview: adminOverview,
+  providerDirections: PROVIDER_DIRECTIONS,
+  providerLabels: PROVIDER_LABELS,
+  providerFees: PROVIDER_FEES,
+  directionQuestions: DIRECTION_QUESTIONS,
+  createProvider,
+  providerMetrics,
+};
 
 async function dispatch(module, operation, args, req) {
   const user = await currentUser(req); const userId = user?._id;
@@ -468,6 +567,38 @@ async function dispatch(module, operation, args, req) {
     if (!mine.some((row) => row._id === args.planId)) throw new Error("Reja topilmadi");
     return await removeRecord(args.planId);
   }
+  // Sayohat taassurotlari — "Tarix" bo'limida bitta bron uchun bitta taassurot
+  // muhurlanadi (matn + kayfiyat + baho). Qayta saqlansa yangilanadi.
+  if (module === "impressions" && operation === "mine") return await records("trip_impression", userId);
+  if (module === "impressions" && operation === "save") {
+    const authUser = await requireUser(req);
+    const bookingId = String(args.bookingId || "");
+    const booking = (await records("booking", authUser._id)).find((row) => row._id === bookingId);
+    if (!booking) throw new Error("Buyurtma topilmadi");
+    const text = String(args.text || "").trim().slice(0, 1200);
+    if (!text) throw new Error("Taassurot matnini kiriting");
+    const payload = {
+      bookingId,
+      reference: booking.reference || null,
+      title: booking.title || null,
+      city: booking.city || null,
+      startDate: booking.startDate || null,
+      mood: IMPRESSION_MOODS.includes(args.mood) ? args.mood : "happy",
+      rating: Math.min(5, Math.max(1, Math.round(Number(args.rating) || 5))),
+      text,
+      stampedAt: Date.now(),
+    };
+    const existing = (await records("trip_impression", authUser._id)).find(
+      (row) => row.bookingId === bookingId,
+    );
+    return existing ? await updateRecord(existing._id, payload) : await record("trip_impression", payload, authUser._id);
+  }
+  if (module === "impressions" && operation === "remove") {
+    const authUser = await requireUser(req);
+    const mine = await records("trip_impression", authUser._id);
+    if (!mine.some((row) => row._id === args.impressionId)) throw new Error("Taassurot topilmadi");
+    return await removeRecord(args.impressionId);
+  }
   if (module === "providers" && operation === "list") {
     const rows = await records("provider");
     return rows.filter((provider) => (!args.status || provider.status === args.status) && (!args.direction || provider.direction === args.direction));
@@ -486,35 +617,8 @@ async function dispatch(module, operation, args, req) {
     const aiIntro = await groq(`Hamkor ${direction} yo'nalishida ro'yxatdan o'tmoqda. Unga o'zbek tilida qisqa, do'stona 1 jumlalik kirish yozing. Faqat jumlani qaytaring.`);
     return { direction, questions, aiIntro: aiIntro || `${direction} yo'nalishi uchun kerakli ma'lumotlarni kiriting.` };
   }
-  if (module === "providers" && operation === "metrics") {
-    const provider = (await records("provider", userId))[0] || null;
-    if (!provider) return { provider: null, open: [], assigned: [], completed: 0, tasks: [], upcomingTasks: [], taskEarnings: 0, revenue: 0, commission: 0, payout: 0 };
-    const [bookings, assignments] = await Promise.all([records("booking"), records("assignment")]);
-    const mine = assignments.filter((task) => task.providerId === provider._id || task.providerUserId === userId);
-    const takenIds = new Set(assignments.map((task) => task.bookingId));
-    const sameCity = (booking) => String(booking.city || "").toLowerCase().includes(String(provider.city || "").toLowerCase()) && String(provider.city || "").length > 0;
-    const open = bookings
-      .filter((booking) => booking.status === "pending" && !takenIds.has(booking._id))
-      .sort((a, b) => Number(sameCity(b)) - Number(sameCity(a)) || Number(b.createdAt || 0) - Number(a.createdAt || 0))
-      .slice(0, 12);
-    const myBookingIds = new Set(mine.map((task) => task.bookingId));
-    const assigned = bookings.filter((booking) => myBookingIds.has(booking._id) && booking.status !== "cancelled");
-    const revenue = assigned.filter((booking) => booking.status !== "pending").reduce((sum, booking) => sum + Number(booking.totalPrice || 0), 0);
-    const commission = Math.round(revenue * COMMISSION_RATE);
-    return {
-      provider,
-      open,
-      assigned,
-      completed: mine.filter((task) => task.status === "done").length,
-      tasks: mine,
-      upcomingTasks: mine.filter((task) => Number(task.scheduledFor || 0) >= Date.now() && task.status !== "done").sort((a, b) => Number(a.scheduledFor || 0) - Number(b.scheduledFor || 0)),
-      taskEarnings: mine.filter((task) => task.status === "done").reduce((sum, task) => sum + Number(task.amount || 0), 0),
-      revenue,
-      commission,
-      payout: revenue - commission,
-    };
-  }
-  if (module === "providers" && operation === "register") return await record("provider", { ...args, status: "pending", subscription: "trial", rating: 0, ratingCount: 0, completedOrders: 0, walletBalance: 0, createdAt: Date.now() }, userId);
+  if (module === "providers" && operation === "metrics") return await providerMetrics(userId);
+  if (module === "providers" && operation === "register") return await createProvider(userId, args);
   if (module === "providers" && operation === "submitLead") { await record("lead", { ...args, handled: false, createdAt: Date.now() }, userId); return { ok: true, message: "So'rov qabul qilindi" }; }
   if (module === "providers" && operation === "listLeads") return await records("lead");
   if (module === "providers" && operation === "updateProfile") {
@@ -556,7 +660,7 @@ async function dispatch(module, operation, args, req) {
       category: args.category || "Boshqa",
       city: args.city || provider?.city || "",
       price: Number(args.price) || 0,
-      seller: provider?.businessName || user?.name || "Millytour hamkori",
+      seller: provider?.businessName || user?.name || "MillyTour hamkori",
       handmadeDays: Number(args.handmadeDays) || 0,
       image: args.image || "",
       providerId: provider?._id || null,
@@ -627,7 +731,7 @@ async function dispatch(module, operation, args, req) {
     return {
       meta: { direction, label },
       screens: [
-        { key: "start", title: "Millytour hamkorlik", body: `${label} yo'nalishi: shartlar, oylik to'lov va ro'yxatdan o'tish.` },
+        { key: "start", title: "MillyTour hamkorlik", body: `${label} yo'nalishi: shartlar, oylik to'lov va ro'yxatdan o'tish.` },
         { key: "cabinet", title: "Kabinet", body: "Profil, obuna holati va to'lovlar tarixi." },
         { key: "orders", title: "Buyurtmalar", body: "Yangi so'rovlar, faol buyurtmalar va ularning holati." },
         { key: "tasks", title: "Vazifalar", body: "Kunlik topshiriqlar: qabul qilish, bajarish, hisobot." },
@@ -739,7 +843,7 @@ async function dispatch(module, operation, args, req) {
     const chatId = args.chatId || resolveOwnerChatId(settings);
     if (!settings[bot].token) return { ok: false, message: `${bot} bot tokeni sozlanmagan` };
     if (!chatId) return { ok: false, message: "chatId yoki OWNER_TELEGRAM_ID kerak" };
-    const text = args.text || "Millytour: test xabari — bot ishlayapti ✅";
+    const text = args.text || "MillyTour: test xabari — bot ishlayapti ✅";
     const result = await sendMessage(settings[bot].token, chatId, text);
     await record("telegram_event", { kind: "test", target: bot, text, chatId, status: result.ok ? "delivered" : "failed", error: result.ok ? null : result.description });
     return { ok: result.ok, message: result.ok ? "Xabar yuborildi" : result.description };
@@ -763,6 +867,8 @@ async function dispatch(module, operation, args, req) {
       username: args.username || "local_tester",
       firstName: args.firstName || "Lokal",
       lastName: args.lastName ?? "Foydalanuvchi",
+      // `callback` berilsa inline tugma bosilishini taqlid qiladi.
+      callback: args.callback || null,
     });
     return await handleUpdate({ bot, update, settings, ctx: telegramCtx });
   }
@@ -804,18 +910,36 @@ app.post("/api/auth/email/verify", async (req, res) => {
 });
 app.post("/api/auth/telegram/start", async (_, res) => {
   const id = randomUUID();
+  // Tasdiqlash kodini bot o'zi beradi (ism-familiyani so'rab) va bazadagi
+  // `code` + `user_id` shu chaqiruvga yoziladi — shuning uchun bu yerda faqat
+  // "kutilayotgan" chaqiruv yaratiladi.
   await db.run("INSERT INTO auth_challenges (id,type,identifier,status,created_at,expires_at) VALUES (?, 'telegram', ?, 'pending', ?, ?)", id, id, Date.now(), challengeExpiry());
-  // Kirish uchun auth bot ishlatiladi, lekin `login_<id>` payload'ini main bot
-  // ham qabul qiladi — ikkala havola ham qaytariladi.
   const settings = await loadBotSettings(db);
   res.json({
     challengeId: id,
-    deepLink: `https://t.me/${settings.auth.username}?start=login_${id}`,
-    mainDeepLink: `https://t.me/${settings.main.username}?start=login_${id}`,
-    username: settings.auth.username,
-    mainUsername: settings.main.username,
+    // Turistlar asosiy botga yo'naltiriladi; `login_<id>` payload'ini ikkala
+    // bot ham qabul qiladi, shu sababli zaxira havola ham qaytariladi.
+    deepLink: `https://t.me/${settings.main.username}?start=login_${id}`,
+    authDeepLink: `https://t.me/${settings.auth.username}?start=login_${id}`,
     expiresAt: challengeExpiry(),
   });
+});
+// Bot bergan kodni saytda tasdiqlash — shu ism-familiya bilan hisob ochiladi.
+app.post("/api/auth/telegram/verify", async (req, res) => {
+  const challenge = await db.get(
+    "SELECT * FROM auth_challenges WHERE id = ? AND type = 'telegram' AND expires_at > ?",
+    req.body?.challengeId,
+    Date.now(),
+  );
+  if (!challenge || !challenge.code || challenge.code !== String(req.body?.code || "").trim()) {
+    return res.status(401).json({ error: "Kod noto'g'ri yoki muddati tugagan" });
+  }
+  if (!challenge.user_id) {
+    return res.status(409).json({ error: "Botda ism-familiyani kiriting va kodni oling" });
+  }
+  await db.run("UPDATE auth_challenges SET status = 'verified' WHERE id = ?", challenge.id);
+  const sessionId = await createSession(challenge.user_id, res, req);
+  res.json({ ok: true, user: await currentUser({ cookies: { millytour_session: sessionId } }) });
 });
 app.get("/api/auth/telegram/status", async (req, res) => {
   const challenge = await db.get("SELECT * FROM auth_challenges WHERE id = ? AND type = 'telegram'", req.query.challengeId);

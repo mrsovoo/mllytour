@@ -284,7 +284,7 @@ export default function PackageDetail() {
             </div>
             <p className="mt-2 text-[13px] leading-5 text-muted-foreground">
               To'lov Click yoki Payme orqali amalga oshiriladi, karta ma'lumotlari 3D Secure bilan
-              himoyalangan. Turlar hamkorlar tomonidan bajariladi va Millytour tomonidan
+              himoyalangan. Turlar hamkorlar tomonidan bajariladi va MillyTour tomonidan
               nazorat qilinadi.
             </p>
           </section>

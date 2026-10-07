@@ -475,7 +475,7 @@ export async function seedDemoData(db, options = {}) {
   const rng = mulberry32(seed);
   const adminId = await upsertUser(db, {
     email: adminEmail,
-    name: "Millytour Administrator",
+    name: "MillyTour Administrator",
     role: "admin",
   });
 
@@ -1085,7 +1085,7 @@ export async function seedDemoData(db, options = {}) {
         status,
         category,
         priority: ["low", "normal", "high"][index % 3],
-        assignee: status === "open" ? null : "Millytour qo'llab-quvvatlash",
+        assignee: status === "open" ? null : "MillyTour qo'llab-quvvatlash",
         resolution: status === "resolved" ? "Masala hal qilindi va mijozga xabar berildi." : null,
         repliedAt: status === "open" ? null : createdAt + 6 * 60 * 60 * 1000,
       },

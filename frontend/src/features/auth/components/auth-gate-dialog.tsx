@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/shared/components/ui/dialog";
-import { MillytourLogo } from "@/shared/components/brand";
+import { MillyTourLogo } from "@/shared/components/brand";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 
 const PERKS = [
@@ -70,7 +70,7 @@ export function AuthGateDialog({
         <div className="relative overflow-hidden bg-[#0B1220] px-6 pt-6 pb-5 text-white">
           <div className="absolute inset-0 bg-gradient-to-br from-[#0B1220] via-[#12306B] to-[#1E40AF]" />
           <div className="relative">
-            <MillytourLogo mono />
+            <MillyTourLogo mono />
             <DialogHeader className="mt-5 gap-2 text-left">
               <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-gold">
                 <ShieldCheck className="size-3" aria-hidden="true" />

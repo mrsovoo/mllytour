@@ -1,4 +1,4 @@
-# Millytour — frontend statik fayl sifatida, backend esa proksi orqali.
+# MillyTour — frontend statik fayl sifatida, backend esa proksi orqali.
 #
 # Variant A (bitta domen, tavsiya etiladi):
 #   millytour.uz/       → statik frontend (frontend/dist)

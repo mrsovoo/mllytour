@@ -2,10 +2,10 @@ import { Star } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 
 /**
- * millytour brend belgisi — gumbaz silueti (Registon manzilgohi uyi),
- * ichida yulduzcha: sayohat + meros. Minimal, bir rangli.
+ * MillyTour brend belgisi — faqat so'z belgisi (wordmark).
+ * Simvol/ikonka ishlatilmaydi, brend nomi matn ko'rinishida yoziladi.
  */
-export function MillytourLogo({
+export function MillyTourLogo({
   className,
   mono = false,
 }: {
@@ -13,58 +13,14 @@ export function MillytourLogo({
   mono?: boolean;
 }) {
   return (
-    <span className={cn("inline-flex items-center gap-2.5", className)}>
-      <span
-        className={cn(
-          "grid size-8 shrink-0 place-items-center rounded-lg",
-          mono
-            ? "border border-white/30 bg-white/10 text-white"
-            : "bg-primary text-primary-foreground",
-        )}
-      >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          className="size-5"
-          aria-hidden="true"
-        >
-          <path
-            d="M4 21c0-4.6 3.6-8.3 8-8.3s8 3.7 8 8.3"
-            stroke="currentColor"
-            strokeWidth="1.7"
-            strokeLinecap="round"
-          />
-          <path
-            d="M12 12.7c-1.9 0-3.4-1.5-3.4-3.4 0-1.9 1.5-3.4 3.4-3.4 1.9 0 3.4 1.5 3.4 3.4 0 1.9-1.5 3.4-3.4 3.4Z"
-            stroke="currentColor"
-            strokeWidth="1.7"
-          />
-          <path
-            d="m12 6.4.9 1.7 1.9.2-1.4 1.3.4 1.9-1.8-1-1.8 1 .4-1.9L9.2 8.3l1.9-.2L12 6.4Z"
-            fill="currentColor"
-          />
-          <path
-            d="M12 4.9V2.6"
-            stroke="currentColor"
-            strokeWidth="1.7"
-            strokeLinecap="round"
-          />
-          <path
-            d="M2.5 21h19"
-            stroke="currentColor"
-            strokeWidth="1.7"
-            strokeLinecap="round"
-          />
-        </svg>
-      </span>
-      <span
-        className={cn(
-          "text-lg font-bold tracking-tight",
-          mono ? "text-white" : "text-foreground",
-        )}
-      >
-        Millytour
-      </span>
+    <span
+      className={cn(
+        "inline-flex items-center text-lg font-bold tracking-tight",
+        mono ? "text-white" : "text-foreground",
+        className,
+      )}
+    >
+      MillyTour
     </span>
   );
 }

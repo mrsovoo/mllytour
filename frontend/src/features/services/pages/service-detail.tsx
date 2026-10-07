@@ -32,7 +32,7 @@ import { Container, PageHero } from "@/shared/components/site";
 import { ServiceOrderForm, type BookableService } from "@/features/services/components/service-order-form";
 import { ServiceRequestPanel } from "@/features/services/components/service-request-panel";
 import { openMillyAi } from "@/features/ai/components/ai-assistant";
-import { PARTNER_BOT_USERNAME, partnerBotLink, type Direction } from "@/shared/data/catalog";
+import { partnerBotLink, type Direction } from "@/shared/data/catalog";
 import { SERVICE_PAGES, findServicePage, type ServiceType } from "@/features/services/data/service-pages";
 import { cn } from "@/shared/lib/utils";
 
@@ -337,7 +337,7 @@ export default function ServiceDetail() {
                 Bu yo'nalishda hozircha tasdiqlangan mutaxassis yo'q
               </p>
               <p className="max-w-md text-sm text-muted-foreground">
-                {page.label} bo'yicha hamkorlar {PARTNER_BOT_USERNAME} orqali ro'yxatdan o'tadi va
+                {page.label} bo'yicha hamkorlar Telegram bot orqali ro'yxatdan o'tadi va
                 administrator tasdiqlagach shu ro'yxatda chiqadi. Hoziroq so'rov qoldirsangiz,
                 birinchi mos mutaxassisga yuboriladi.
               </p>

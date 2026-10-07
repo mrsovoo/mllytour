@@ -84,8 +84,8 @@ export default function Admin() {
             </h1>
             <p className="text-[13px] leading-5 text-muted-foreground">
               {status.adminCount === 0
-                ? "Tizimda hali administrator yo'q. Hisobingizni Millytour administratori sifatida belgilashingiz mumkin."
-                : "Bu bo'lim faqat Millytour administratorlari uchun. Kirish huquqini administrator panelidan so'rang."}
+                ? "Tizimda hali administrator yo'q. Hisobingizni MillyTour administratori sifatida belgilashingiz mumkin."
+                : "Bu bo'lim faqat MillyTour administratorlari uchun. Kirish huquqini administrator panelidan so'rang."}
             </p>
             {status.adminCount === 0 && (
               <Button
@@ -159,7 +159,7 @@ function AdminPanel() {
   return (
     <PanelShell
       variant="admin"
-      title="Millytour boshqaruv markazi"
+      title="MillyTour boshqaruv markazi"
       subtitle="Platformaning barcha tomonlari: hamkorlar, buyurtmalar, marketplace, tur paketlar tahlili va Telegram botlari."
       nav={TABS.map((t) => ({
         icon: t.icon,

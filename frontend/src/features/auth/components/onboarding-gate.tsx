@@ -5,7 +5,7 @@ import { useAuth } from "@/features/auth/hooks/use-auth";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { CITIES } from "@/shared/data/catalog";
-import { MillytourLogo } from "@/shared/components/brand";
+import { MillyTourLogo } from "@/shared/components/brand";
 import { Loader2, Sparkles } from "lucide-react";
 
 const INTERESTS = [
@@ -79,7 +79,7 @@ export function OnboardingGate({ children }: { children?: React.ReactNode }) {
       <div className="fixed inset-0 z-[70] grid place-items-center bg-background/80 p-4 backdrop-blur-sm">
         <div className="w-full max-w-md rounded-2xl border bg-card p-6 shadow-lifted">
           <div className="flex items-center justify-between">
-            <MillytourLogo />
+            <MillyTourLogo />
             <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-bold text-primary">
               <Sparkles className="size-3" aria-hidden="true" />
               1 daqiqa

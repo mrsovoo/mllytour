@@ -25,18 +25,18 @@ export type CategoryId = (typeof TOUR_CATEGORIES)[number]["id"];
 /**
  * Ikki xil bot — ikki xil auditoriya.
  *
- * - `mtour_auth_bot` (`PARTNER_BOT_USERNAME`) — hamkorlar, ya'ni xizmat
+ * - `millyauth_bot` (`PARTNER_BOT_USERNAME`) — hamkorlar, ya'ni xizmat
  *   ko'rsatuvchilar (gid, transfer, mehmonxona, hunarmand...). Ular shu bot
- *   orqali ro'yxatdan o'tadi va vizualsiz (matnli) bot kabinetini oladi.
- * - `mllytour_bot` (`MAIN_BOT_USERNAME`) — turistlar va sayohatchilar. Ular
+ *   orqali ro'yxatdan o'tadi va matnli bot kabinetini oladi.
+ * - `millytour_bot` (`MAIN_BOT_USERNAME`) — turistlar va sayohatchilar. Ular
  *   bot orqali buyurtma beradi va sayohatini vizualsiz (matnli) kuzatadi.
  *
  * Bu qiymatlar faqat matnlarda va zaxira havolalarda ishlatiladi — login
  * havolasi backenddan (`/api/auth/telegram/start`) keladi va u yerda bot
  * `telegram` sozlamalaridan (panel yoki `.env`) olinadi.
  */
-export const PARTNER_BOT_USERNAME = "mtour_auth_bot";
-export const MAIN_BOT_USERNAME = "mllytour_bot";
+export const PARTNER_BOT_USERNAME = "millyauth_bot";
+export const MAIN_BOT_USERNAME = "millytour_bot";
 /** Owner uchun statistika boti (`@mtour_by_statik_bot`) — faqat loyiha egasi kuzatadi. */
 export const STATS_BOT_USERNAME = "mtour_by_statik_bot";
 

@@ -31,7 +31,7 @@ type SupportMessage = {
 const GREETING: SupportMessage = {
   _id: "greeting",
   role: "support",
-  authorName: "Millytour",
+  authorName: "MillyTour",
   text: "Assalomu alaykum! Qanday yordam bera olamiz? Savolingizni yozing yoki rasm yuboring.",
   attachment: null,
   replyTo: null,
@@ -244,7 +244,7 @@ export function SupportChat({ open, onClose }: { open: boolean; onClose: () => v
                         {message.text && <span className="block whitespace-pre-wrap">{message.text}</span>}
                       </button>
                       <span className="px-1 text-[10.5px] text-muted-foreground">
-                        {mine ? authorName : message.authorName || "Millytour"}
+                        {mine ? authorName : message.authorName || "MillyTour"}
                       </span>
                     </div>
                   );

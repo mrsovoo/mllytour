@@ -1,7 +1,7 @@
 {
-  "name": "Millytour MVP",
-  "short_name": "Millytour",
-  "description": "Millytour MVP — O'zbekistonning yagona turizm marketplace'i",
+  "name": "MillyTour MVP",
+  "short_name": "MillyTour",
+  "description": "MillyTour MVP — O'zbekistonning yagona turizm marketplace'i",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

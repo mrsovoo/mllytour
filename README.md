@@ -1,6 +1,6 @@
-# Millytour
+# MillyTour
 
-Millytour is a Vite + React travel platform with a local Express REST backend and SQLite database.
+MillyTour is a Vite + React travel platform with a local Express REST backend and SQLite database.
 
 ## Repository layout
 
@@ -159,12 +159,52 @@ Panel rejimlarida ilova faqat o'z marshrutlarini ko'rsatadi, qolgan barcha manzi
 
 Localda super admin bo'lish: `http://localhost:3000/admin` → `/auth` orqali kirish (`.env.local` da `SHOW_DEV_OTP=true` bo'lsa OTP ekranda ko'rsatiladi). Tizimda hali admin yo'q bo'lsa, panel "Administrator bo'lish" tugmasini beradi — bir marta bosilsa, keyingi kirishlarda to'liq super admin paneli ochiladi.
 
-Vercel'da ikki loyiha bir xil repodan deploy qilinadi:
+### Vercel'ga deploy (frontend)
+
+Vercel'da **ikki loyiha bir xil repodan** deploy qilinadi (sayt va admin panel):
 
 | Loyiha | Domen | Sozlama |
 | --- | --- | --- |
-| Sayt | `millytour.vercel.app` | qo'shimcha env yo'q |
-| Admin | `millytour-adm.vercel.app` | `VITE_ADMIN_ONLY=1` |
+| Sayt | `millytour.vercel.app` | `VITE_API_URL=https://<backend-domen>` |
+| Admin | `millytour-adm.vercel.app` | `VITE_API_URL=...` + `VITE_ADMIN_ONLY=1` |
+
+Qadamlar:
+
+1. Vercel → **Add New → Project** → GitHub repo'ni tanlang.
+2. **Root Directory** ni **bo'sh (repo ildizi)** qoldiring — `vercel.json` shu yerda
+turibdi va build buyrug'i workspace orqali ishlaydi (`npm run build -w millytour-tourist`,
+chiqish `frontend/dist`). `frontend/` ni root qilib qo'yilsa build buziladi.
+3. **Environment Variables** (build paytida kerak, keyin o'zgartirsangiz **redeploy** shart):
+
+| Kalit | Qiymat | Nima uchun |
+| --- | --- | --- |
+| `VITE_API_URL` | `https://<backend-domen>` (Railway/Render) | brauzer API'ni shu manzildan chaqiradi |
+| `VITE_ADMIN_ONLY` | `1` — faqat admin loyihasida | panel rejimi |
+
+4. **Deploy** → `vercel.app` domeni beriladi.
+5. Backend tomonda (Railway/Render/host) shu uchta env **shart**, aks holda kirish
+"ishlagandek" ko'rinib, sessiya saqlanmaydi:
+
+```bash
+SITE_URL=https://<vercel-domen>          # Telegram webhook manzili
+CORS_ORIGIN=https://<vercel-domen>,https://<admin-vercel-domen>
+COOKIE_SAME_SITE=none                     # vercel.app va railway.app — turli sayt
+COOKIE_SECURE=true
+SHOW_DEV_OTP=true                         # demoda email/pushsiz kirish uchun
+```
+
+> ⚠️ `vercel.json` dagi `/api/:path*` → `/api/index.mjs` qatori Express'ni **serverless
+> funksiya** sifatida ulaydi, lekin baza SQLite fayl (`backend/data/*.db`) — serverless
+> fayl tizimi esa vaqtinchalik. Shu sababli **backend Vercel'da ishlamaydi**: u alohida
+> hostda turadi, frontend esa `VITE_API_URL` orqali unga murojaat qiladi.
+> `VITE_API_URL` bo'sh qolsa brauzer Vercel funksiyasiga uradi va API bo'sh javob beradi.
+
+CLI orqali (lokal):
+
+```bash
+npx vercel login
+npx vercel --prod          # repo ildizidan
+```
 
 ## Telegram botlar
 

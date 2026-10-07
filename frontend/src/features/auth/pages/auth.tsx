@@ -3,7 +3,8 @@ import { Input } from "@/shared/components/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/shared/components/ui/input-otp";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { AuthChoiceDialog } from "@/features/auth/components/auth-choice-dialog";
-import { MillytourLogo } from "@/shared/components/brand";
+import { GoogleComingSoonButton } from "@/features/auth/components/google-button";
+import { MillyTourLogo } from "@/shared/components/brand";
 import { ArrowLeft, ArrowRight, Globe, Loader2, Mail, Send, ShieldCheck } from "lucide-react";
 import { Suspense, useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
@@ -80,8 +81,8 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
         <div className="absolute inset-0 bg-gradient-to-br from-[#0B1220] via-[#12306B] to-[#1E40AF]" />
         <div className="absolute inset-0 bg-[radial-gradient(70%_60%_at_15%_0%,rgba(245,158,11,0.22),transparent_60%)]" />
         <div className="relative z-10 flex h-full flex-col p-10 xl:p-14">
-          <Link to="/" aria-label="millytour — bosh sahifa">
-            <MillytourLogo mono />
+          <Link to="/" aria-label="MillyTour — bosh sahifa">
+            <MillyTourLogo mono />
           </Link>
           <div className="mt-auto max-w-md">
             <h1 className="text-3xl leading-10 font-bold tracking-tight">
@@ -105,7 +106,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
             </ul>
           </div>
           <p className="mt-12 text-xs text-white/50">
-            © 2026 millytour · Toshkent, O'zbekiston
+            © 2026 MillyTour · Toshkent, O'zbekiston
           </p>
         </div>
       </aside>
@@ -125,8 +126,8 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
 
         <div className="w-full max-w-sm">
           <div className="mb-8 flex justify-center lg:hidden">
-            <Link to="/" aria-label="millytour — bosh sahifa">
-              <MillytourLogo />
+            <Link to="/" aria-label="MillyTour — bosh sahifa">
+              <MillyTourLogo />
             </Link>
           </div>
 
@@ -192,6 +193,10 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                 }
               />
 
+              <div className="mt-3">
+                <GoogleComingSoonButton />
+              </div>
+
               <p className="mt-8 text-center text-xs leading-5 text-muted-foreground">
                 Davom etish orqali{" "}
                 <Link
@@ -217,7 +222,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
               </h2>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
                 6 xonali kod <span className="font-medium text-foreground">{step.email}</span>{" "}
-                manziliga yuborildi.
+                ga yuborildi.
               </p>
               <form onSubmit={handleOtpSubmit} className="mt-8">
                 <input type="hidden" name="email" value={step.email} />

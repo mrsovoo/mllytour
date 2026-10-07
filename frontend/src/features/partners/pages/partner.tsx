@@ -973,7 +973,7 @@ export default function Partner() {
                   </span>
                 </li>
                 <li className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Millytour reytingi</span>
+                  <span className="text-muted-foreground">MillyTour reytingi</span>
                   <span className="font-semibold text-foreground">
                     {provider.rating.toFixed(1)} · {provider.ratingCount} baho
                   </span>

@@ -9,14 +9,15 @@ import {
   CarFront,
   Check,
   Clock,
+  Compass,
   Languages,
   MapPin,
+  Play,
   Search,
   ShieldCheck,
   Sparkles,
   Store,
   Ticket,
-  UserRound,
   Users,
   UtensilsCrossed,
 } from "lucide-react";
@@ -44,8 +45,6 @@ import {
   PRODUCTS,
   TOUR_CATEGORIES,
   TOUR_PACKAGES,
-  PARTNER_BOT_USERNAME,
-  partnerBotLink,
   type CategoryId,
 } from "@/shared/data/catalog";
 
@@ -429,64 +428,72 @@ const SERVICES = [
     icon: BedDouble,
     title: "Mehmonxona",
     text: "3* dan butik mehmonxonalargacha — bronlar to'g'ridan-to'g'ri egasidan.",
-    chip: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400",
-    ink: "text-indigo-600 dark:text-indigo-400",
+    grad: "from-amber-400 to-amber-600",
+    soft: "from-amber-100 to-amber-50",
+    ink: "text-amber-600",
     to: "/xizmatlar?direction=hotel",
   },
   {
     icon: UtensilsCrossed,
     title: "Restoran",
     text: "Milliy taomlar, guruh uchun stol va gastronomik kechalar.",
-    chip: "bg-orange-500/10 text-orange-600 dark:text-orange-400",
-    ink: "text-orange-600 dark:text-orange-400",
+    grad: "from-emerald-400 to-lime-500",
+    soft: "from-emerald-100 to-lime-50",
+    ink: "text-emerald-600",
     to: "/xizmatlar?direction=restaurant",
   },
   {
-    icon: UserRound,
+    icon: Compass,
     title: "Gid",
     text: "Litsenziyali, tillarni biladigan gidlar — kunlik yoki marshrut bo'yicha.",
-    chip: "bg-primary/10 text-primary",
-    ink: "text-primary",
+    grad: "from-cyan-400 to-sky-500",
+    soft: "from-cyan-100 to-sky-50",
+    ink: "text-cyan-600",
     to: "/xizmatlar?direction=guide",
   },
   {
     icon: CarFront,
     title: "Transfer",
     text: "Aeroport, shaharlararo va shahar ichida tashish. Mashina holati kunlik nazoratda.",
-    chip: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-    ink: "text-emerald-600 dark:text-emerald-400",
+    grad: "from-blue-700 to-sky-400",
+    soft: "from-blue-100 to-sky-50",
+    ink: "text-blue-700",
     to: "/xizmatlar?direction=transfer",
   },
   {
     icon: Languages,
     title: "Tarjimon",
     text: "Guruh tili bo'yicha tarjimon — kunma-kun vazifa va aniq mas'ul mutaxassis.",
-    chip: "bg-sky-500/10 text-sky-600 dark:text-sky-400",
-    ink: "text-sky-600 dark:text-sky-400",
+    grad: "from-violet-500 to-indigo-700",
+    soft: "from-violet-100 to-indigo-50",
+    ink: "text-violet-600",
     to: "/xizmatlar?direction=translator",
   },
   {
     icon: Camera,
     title: "Fotograf",
     text: "Professional fotosessiya: lokatsiya, vaqt va tayyor suratlar paketi.",
-    chip: "bg-fuchsia-500/10 text-fuchsia-600 dark:text-fuchsia-400",
-    ink: "text-fuchsia-600 dark:text-fuchsia-400",
+    grad: "from-slate-600 to-slate-300",
+    soft: "from-slate-100 to-slate-50",
+    ink: "text-slate-600",
     to: "/xizmatlar?direction=photographer",
   },
   {
     icon: Ticket,
     title: "Boshqa xizmatlar",
     text: "Sug'urta, chipta, konsulxizmat va turizm sohasidagi boshqa xizmatlar.",
-    chip: "bg-slate-500/10 text-slate-600 dark:text-slate-300",
-    ink: "text-slate-600 dark:text-slate-300",
+    grad: "from-red-700 to-orange-500",
+    soft: "from-red-100 to-orange-50",
+    ink: "text-red-600",
     to: "/xizmatlar?direction=other",
   },
   {
     icon: Store,
     title: "Hunarmandlar bozori",
     text: "Kulolchilik, atlas va zargarlik buyumlari — ustaxonadan to'g'ridan-to'g'ri.",
-    chip: "bg-teal-500/10 text-teal-600 dark:text-teal-400",
-    ink: "text-teal-600 dark:text-teal-400",
+    grad: "from-orange-700 to-amber-500",
+    soft: "from-orange-100 to-amber-50",
+    ink: "text-orange-700",
     to: "/hunarmandlar",
   },
 ];
@@ -508,7 +515,7 @@ function ServicesBand() {
             </Link>
           </Button>
         </motion.div>
-        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
+        <div className="mt-10 grid grid-cols-2 gap-4 lg:grid-cols-4 lg:gap-6">
           {SERVICES.map((s, i) => (
             <motion.div
               key={s.title}
@@ -517,24 +524,35 @@ function ServicesBand() {
             >
               <Link
                 to={s.to}
-                className="group flex h-full flex-col rounded-2xl border bg-card p-5 transition-all hover:-translate-y-1 hover:shadow-soft"
+                aria-label={`${s.title} — ko'rish`}
+                className="group flex h-full flex-col items-center rounded-[26px] bg-card px-3.5 py-6 text-center sm:px-5 sm:py-7 shadow-[8px_8px_22px_rgba(15,23,42,0.06),-8px_-8px_22px_rgba(255,255,255,0.9)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[10px_16px_34px_rgba(15,23,42,0.11),-8px_-8px_22px_rgba(255,255,255,0.95)] dark:shadow-none dark:ring-1 dark:ring-border"
               >
+                {/* Markaziy aylana: ikki qavatli nozik gradient halqa + line-art ikonka */}
                 <span
-                  className={`grid size-11 place-items-center rounded-xl ${s.chip}`}
+                  className={cn(
+                    "relative grid size-20 shrink-0 place-items-center rounded-full bg-gradient-to-br p-[2px]",
+                    s.grad,
+                  )}
                 >
-                  <s.icon className="size-5" aria-hidden="true" />
+                  <span className="grid size-full place-items-center rounded-full bg-card">
+                    <span
+                      className={cn(
+                        "grid size-14 place-items-center rounded-full bg-gradient-to-br",
+                        s.soft,
+                      )}
+                    >
+                      <s.icon className={cn("size-6", s.ink)} aria-hidden="true" />
+                    </span>
+                  </span>
+                  {/* "Ko'rish" tugmasi — aylananing yuqori o'ng burchagida */}
+                  <span className="absolute -top-0.5 -right-0.5 grid size-7 place-items-center rounded-full bg-primary text-primary-foreground ring-2 ring-card transition-transform duration-300 group-hover:scale-110">
+                    <Play className="size-3 fill-current" aria-hidden="true" />
+                  </span>
                 </span>
-                <h3 className="mt-4 text-[15px] font-semibold text-foreground">{s.title}</h3>
-                <p className="mt-2 flex-1 text-[13px] leading-5 text-muted-foreground">{s.text}</p>
-                <span
-                  className={`mt-4 inline-flex items-center gap-1.5 text-[13px] font-semibold ${s.ink}`}
-                >
-                  Ko'rish
-                  <ArrowRight
-                    className="size-3.5 transition-transform group-hover:translate-x-0.5"
-                    aria-hidden="true"
-                  />
-                </span>
+                <h3 className="mt-5 text-[16px] font-bold text-foreground">{s.title}</h3>
+                <p className="mt-2 flex-1 text-[13px] leading-5 text-muted-foreground">
+                  {s.text}
+                </p>
               </Link>
             </motion.div>
           ))}
@@ -609,7 +627,7 @@ function ArtisansTeaser() {
 /* ------------------------------- hamkor CTA ------------------------------- */
 
 const PARTNER_PERKS = [
-  `${PARTNER_BOT_USERNAME} orqali 5 daqiqada ro'yxatdan o'tish`,
+  "Telegram bot orqali 5 daqiqada ro'yxatdan o'tish",
   "Buyurtmalar yo'nalishingizga moslab botga tushadi",
   "Reyting, kalendar va to'lovlar bitta panelda",
   "Oylik obuna: $19 dan boshlab",
@@ -635,25 +653,17 @@ function PartnerCta() {
                 Xizmat ko'rsatuvchimisiz? O'z boshqaruv panelingizni oling
               </h2>
               <p className="mt-4 max-w-xl text-[15px] leading-6 text-white/75">
-                Millytour hamkorlari {PARTNER_BOT_USERNAME} orqali ro'yxatdan o'tadi va yo'nalishiga
-                mos bot
+                MillyTour hamkorlari Telegram bot orqali ro'yxatdan o'tadi va yo'nalishiga mos bot
                 paneliga ega bo'ladi: buyurtmalar, Milly AI biriktirgan vazifalar, kalendar, reyting
                 va to'lovlar — hammasi bitta joyda.
               </p>
+              {/* Navbardagi «Hamkorlik» bilan bir xil sahifaga olib boradi. */}
               <div className="mt-7 flex flex-wrap gap-3">
                 <Button size="lg" className="bg-gold text-gold-foreground hover:bg-gold/90" asChild>
-                  <a href={partnerBotLink()} target="_blank" rel="noreferrer">
+                  <Link to="/hamkorlar">
                     Hamkor bo'lish
                     <ArrowRight className="size-4" aria-hidden="true" />
-                  </a>
-                </Button>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white"
-                  asChild
-                >
-                  <Link to="/partner">Hamkor paneli</Link>
+                  </Link>
                 </Button>
               </div>
             </div>

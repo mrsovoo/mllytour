@@ -17,7 +17,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/shared/components/ui/sheet";
-import { MillytourLogo } from "@/shared/components/brand";
+import { MillyTourLogo } from "@/shared/components/brand";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { cn } from "@/shared/lib/utils";
 
@@ -52,7 +52,7 @@ export function PanelShell({
   const variantMeta = {
     tourist: { label: "Sayohatchi profili", tone: "text-primary" },
     partner: { label: "Hamkor paneli", tone: "text-gold" },
-    admin: { label: "Millytour administratori", tone: "text-eco" },
+    admin: { label: "MillyTour administratori", tone: "text-eco" },
   }[variant];
 
   const handleSignOut = async () => {
@@ -123,15 +123,15 @@ export function PanelShell({
             <SheetContent side="left" className="w-72">
               <SheetHeader>
                 <SheetTitle className="text-left">
-                  <MillytourLogo />
+                  <MillyTourLogo />
                 </SheetTitle>
               </SheetHeader>
               <div className="px-4 py-4">{navList}</div>
             </SheetContent>
           </Sheet>
 
-          <Link to="/" className="hidden shrink-0 lg:block" aria-label="Millytour bosh sahifa">
-            <MillytourLogo />
+          <Link to="/" className="hidden shrink-0 lg:block" aria-label="MillyTour bosh sahifa">
+            <MillyTourLogo />
           </Link>
 
           <div className="min-w-0 flex-1">

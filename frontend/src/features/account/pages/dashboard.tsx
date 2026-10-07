@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { useRestMutation, useRestQuery } from "@/shared/api/client";
 import { toast } from "sonner";
@@ -17,16 +17,14 @@ import {
   Star,
   Trash2,
   UserRound,
-  Wallet,
 } from "lucide-react";
 import { openMillyAi } from "@/features/ai/components/ai-assistant";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Textarea } from "@/shared/components/ui/textarea";
-import { PanelCard, PanelEmpty, PanelShell, PanelTable, StatCard, StatusBadge } from "@/shared/components/workspace";
-import { PriceInline } from "@/shared/lib/currency";
+import { PanelCard, PanelEmpty, PanelShell, PanelTable, StatusBadge } from "@/shared/components/workspace";
 import { useAuth } from "@/features/auth/hooks/use-auth";
-import { MAIN_BOT_USERNAME } from "@/shared/data/catalog";
+import { TravelHistory, type Booking } from "@/features/account/components/travel-history";
 import type { Plan as AiPlan } from "@/features/ai/lib/planner";
 import { cn } from "@/shared/lib/utils";
 
@@ -112,22 +110,6 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]["id"];
 
-type Booking = {
-  _id: string;
-  reference: string;
-  title: string;
-  city: string;
-  kind: string;
-  startDate: string;
-  days: number;
-  guests: number;
-  totalPrice: number;
-  status: string;
-  paymentMethod: string;
-  paymentStatus: string;
-  discountPercent?: number;
-};
-
 export default function Dashboard() {
   const { user, isLoading } = useAuth();
   const [params] = useSearchParams();
@@ -142,31 +124,6 @@ export default function Dashboard() {
 
   const bookings = (data?.bookings ?? []) as unknown as Booking[];
   const stats = data?.stats ?? null;
-
-  /** Sayohat pasporti: shahar bo'yicha tashriflar va oxirgi sana. */
-  const travelPlaces = useMemo(() => {
-    const map = new Map<string, { visits: number; lastDate: string }>();
-    for (const b of bookings) {
-      const city = b.city.split("·")[0].trim() || "—";
-      const current = map.get(city);
-      if (!current) {
-        map.set(city, { visits: 1, lastDate: b.startDate });
-      } else {
-        current.visits += 1;
-        if (b.startDate > current.lastDate) {
-          current.lastDate = b.startDate;
-        }
-      }
-    }
-    return Array.from(map.entries())
-      .map(([city, v]) => ({ city, ...v }))
-      .sort((a, b) => b.visits - a.visits);
-  }, [bookings]);
-
-  const averageRating =
-    myReviews.length === 0
-      ? 0
-      : myReviews.reduce((sum, r) => sum + r.rating, 0) / myReviews.length;
 
   if (isLoading) {
     return null;
@@ -323,98 +280,7 @@ export default function Dashboard() {
       )}
 
       {tab === "history" && (
-        <div className="flex flex-col gap-6">
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <StatCard
-              icon={ClipboardList}
-              label="Sayohatlar"
-              value={stats?.total ?? 0}
-              hint="Jami buyurtmalar"
-            />
-            <StatCard
-              icon={Globe2}
-              label="Ko'rilgan joylar"
-              value={travelPlaces.length}
-              hint="Shahar va yo'nalishlar"
-              tone="gold"
-            />
-            <StatCard
-              icon={Wallet}
-              label="Sarflangan"
-              value={
-                <PriceInline usd={stats?.spent ?? 0} />
-              }
-              hint="To'langan buyurtmalar"
-              tone="eco"
-            />
-            <StatCard
-              icon={Star}
-              label="Sizning bahoyingiz"
-              value={averageRating ? averageRating.toFixed(1) : "—"}
-              hint={`${myReviews.length} ta sharh qoldirdingiz`}
-            />
-          </div>
-
-          <PanelCard
-            title="Sayohat pasporti"
-            description="Safar qilgan shaharlaringiz — millytour hisobingizdagi tarix"
-          >
-            {travelPlaces.length === 0 ? (
-              <PanelEmpty icon={MapPin} title="Hali sayohat yo'q" />
-            ) : (
-              <ul className="flex flex-wrap gap-2">
-                {travelPlaces.map((place) => (
-                  <li
-                    key={place.city}
-                    className="rounded-xl border bg-background px-3 py-2 text-[13px] font-semibold text-foreground"
-                  >
-                    {place.city}
-                    <span className="ml-2 text-[11px] font-normal text-muted-foreground">
-                      {place.visits} marta · oxirgi: {place.lastDate}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </PanelCard>
-
-          <PanelCard title="Buyurtmalar tarixi" description="Barcha so'rov va bronlar">
-            {bookings.length === 0 ? (
-              <PanelEmpty icon={ClipboardList} title="Buyurtma yo'q" />
-            ) : (
-              <PanelTable head={["Buyurtma", "Shahar", "Sana", "Summa", "Holat", "To'lov"]}>
-                <>
-                  {bookings.map((b) => (
-                    <tr key={b._id}>
-                      <td className="py-3">
-                        <p className="text-[13px] font-semibold text-foreground">{b.title}</p>
-                        <p className="text-[11px] text-muted-foreground">{b.reference}</p>
-                      </td>
-                      <td className="py-3 text-[12px] text-muted-foreground">{b.city}</td>
-                      <td className="py-3 text-[12px] text-muted-foreground">{b.startDate}</td>
-                      <td className="py-3 text-[13px] font-semibold text-foreground">
-                        <PriceInline usd={b.totalPrice} />
-                        {b.discountPercent ? (
-                          <span className="ml-1.5 text-[11px] font-normal text-emerald-600 dark:text-emerald-400">
-                            −{b.discountPercent}%
-                          </span>
-                        ) : null}
-                      </td>
-                      <td className="py-3">
-                        <StatusBadge status={b.status} />
-                      </td>
-                      <td className="py-3">
-                        <StatusBadge
-                          status={b.paymentStatus === "paid" ? "active" : "pending"}
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </>
-              </PanelTable>
-            )}
-          </PanelCard>
-        </div>
+        <TravelHistory bookings={bookings} stats={stats} ratings={myReviews} />
       )}
 
       {tab === "plans" && (
@@ -546,7 +412,7 @@ export default function Dashboard() {
                 </li>
                 <li className="flex items-center gap-2">
                   <Send className="size-4 text-primary" aria-hidden="true" />
-                  Telegram: @{MAIN_BOT_USERNAME}
+                  Telegram bot orqali yordam
                 </li>
                 <li className="flex items-center gap-2">
                   <CalendarDays className="size-4 text-primary" aria-hidden="true" />

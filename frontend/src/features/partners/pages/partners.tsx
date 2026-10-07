@@ -27,7 +27,6 @@ import { Container, PageHero } from "@/shared/components/site";
 import {
   PARTNER_BOT_USERNAME,
   PARTNER_DIRECTIONS,
-  partnerBotLink,
   type Direction,
 } from "@/shared/data/catalog";
 import { cn } from "@/shared/lib/utils";
@@ -45,8 +44,8 @@ const DIRECTION_ICONS: Record<Direction, React.ElementType> = {
 
 const STEPS = [
   {
-    title: "Auth botga o'ting",
-    text: `Telegram'dagi @${PARTNER_BOT_USERNAME} (auth bot) ni oching va yo'nalishingizni tanlang.`,
+    title: "Botga o'ting",
+    text: "Telegram botni oching va yo'nalishingizni tanlang — bot savollarni ketma-ket beradi.",
   },
   {
     title: "Ma'lumotlarni kiriting",
@@ -86,7 +85,11 @@ export default function Partners() {
   const [directionAnswers, setDirectionAnswers] = useState<Record<string, string>>({});
 
   const active = PARTNER_DIRECTIONS.find((d) => d.id === direction)!;
-  const botLink = config?.authDeepLink ?? partnerBotLink();
+  // Tanlangan yo'nalish botga uzatiladi: t.me/millyauth_bot?start=register_<direction>
+  // Bot shu yo'nalish savollarini so'rab, hamkor profilini yaratadi.
+  const botUsername =
+    (config?.usernames as { auth?: string } | undefined)?.auth ?? PARTNER_BOT_USERNAME;
+  const botLink = `https://t.me/${botUsername}?start=register_${direction}`;
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -106,14 +109,14 @@ export default function Partners() {
     <>
       <PageHero
         eyebrow="Hamkorlik"
-        title="Millytour hamkori bo'ling — yo'nalishingizga mos boshqaruv paneli bilan"
-        description={`Gid, transfer, tarjimon, fotograf, hunarmand yoki mehmonxona egasimisiz? @${PARTNER_BOT_USERNAME} (auth bot) orqali ro'yxatdan o'ting va buyurtmalarni o'z bot hamda panelingizda boshqaring.`}
+        title="MillyTour hamkori bo'ling — yo'nalishingizga mos boshqaruv paneli bilan"
+        description="Gid, transfer, tarjimon, fotograf, hunarmand yoki mehmonxona egasimisiz? Telegram bot orqali ro'yxatdan o'ting va buyurtmalarni bot hamda panelingizda boshqaring."
       >
         <div className="flex flex-wrap gap-3">
           <Button size="lg" className="bg-gold text-gold-foreground hover:bg-gold/90" asChild>
             <a href={botLink} target="_blank" rel="noreferrer">
               <Send className="size-4" aria-hidden="true" />
-              Auth bot orqali ro'yxatdan o'tish
+              Bot orqali ro'yxatdan o'tish
             </a>
           </Button>
           <Button
@@ -122,7 +125,7 @@ export default function Partners() {
             className="border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white"
             asChild
           >
-            <Link to="/partner">Panelni ko'rish</Link>
+            <a href="#tariflar">Tariflar va savollar</a>
           </Button>
         </div>
       </PageHero>
@@ -263,7 +266,7 @@ export default function Partners() {
         </div>
 
         {/* ---------------------------------- so'rov ---------------------------------- */}
-        <div className="mt-12 grid gap-6 lg:grid-cols-[1fr_1.1fr]">
+        <div id="tariflar" className="mt-12 grid scroll-mt-24 gap-6 lg:grid-cols-[1fr_1.1fr]">
           <div>
             <h2 className="text-lg font-semibold text-foreground">
               Bot orqali o'tolmadimi? So'rov qoldiring
@@ -296,7 +299,7 @@ export default function Partners() {
                 Turist hisobi orqali buyurtmalar, vaucherlar va AI dasturlar saqlanadi.
               </p>
               <Button variant="outline" size="sm" className="mt-3" asChild>
-                <Link to="/auth?returnTo=%2Fdashboard">
+                <Link to="/auth?returnTo=%2Fkabinet">
                   Turist sifatida ro'yxatdan o'tish
                   <ArrowRight className="size-3.5" aria-hidden="true" />
                 </Link>
@@ -315,13 +318,13 @@ export default function Partners() {
                     So'rovingiz qabul qilindi
                   </p>
                   <p className="max-w-sm text-[13px] leading-5 text-muted-foreground">
-                    Mutaxassis 1 ish kuni ichida bog'lanadi. Tezroq boshlash uchun
-                    @{PARTNER_BOT_USERNAME} da ro'yxatdan o'ting.
+                    Mutaxassis 1 ish kuni ichida bog'lanadi. Tezroq boshlash uchun Telegram botda
+                    ro'yxatdan o'ting.
                   </p>
                   <Button asChild>
                     <a href={botLink} target="_blank" rel="noreferrer">
                       <Send className="size-4" aria-hidden="true" />
-                      Auth botni ochish
+                      Botni ochish
                     </a>
                   </Button>
                 </div>

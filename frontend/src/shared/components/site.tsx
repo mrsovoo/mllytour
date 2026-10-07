@@ -28,7 +28,7 @@ import {
   UserRoundCheck,
   Youtube,
 } from "lucide-react";
-import { MAIN_BOT_USERNAME, partnerBotLink } from "@/shared/data/catalog";
+import { MAIN_BOT_USERNAME } from "@/shared/data/catalog";
 import { DESTINATIONS } from "@/features/destinations/data/destinations";
 import { LangSwitcher, useLang } from "@/shared/lib/i18n";
 import { Button } from "@/shared/components/ui/button";
@@ -47,7 +47,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/shared/components/ui/sheet";
-import { MillytourLogo } from "@/shared/components/brand";
+import { MillyTourLogo } from "@/shared/components/brand";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { cn } from "@/shared/lib/utils";
 import { AuthChoiceDialog } from "@/features/auth/components/auth-choice-dialog";
@@ -311,8 +311,8 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-border/70 bg-background/90 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
       <Container className="flex h-14 items-center justify-between gap-4">
-        <Link to="/" aria-label="millytour — bosh sahifa" className="shrink-0">
-          <MillytourLogo />
+        <Link to="/" aria-label="MillyTour — bosh sahifa" className="shrink-0">
+          <MillyTourLogo />
         </Link>
 
         <nav className="hidden items-center gap-1 lg:flex" aria-label="Asosiy menyu">
@@ -362,7 +362,7 @@ export function SiteHeader() {
             <SheetContent side="right" className="w-72">
               <SheetHeader>
                 <SheetTitle className="text-left">
-                  <MillytourLogo />
+                  <MillyTourLogo />
                 </SheetTitle>
               </SheetHeader>
               <nav className="flex flex-col gap-1 overflow-y-auto px-4" aria-label="Mobil menyu">
@@ -443,9 +443,7 @@ export function SiteHeader() {
                       trigger={<Button size="lg" onClick={() => setOpen(false)}>{t("cta_login_register")}</Button>}
                     />
                     <Button size="lg" variant="outline" asChild onClick={() => setOpen(false)}>
-                      <a href={partnerBotLink()} target="_blank" rel="noreferrer">
-                        Hamkorlik — mtour_auth_bot
-                      </a>
+                      <Link to="/hamkorlar">Hamkorlik</Link>
                     </Button>
                   </>
                 )}
@@ -547,9 +545,11 @@ const FOOTER_SERVICES = [
   { label: "Boshqa xizmatlar", to: "/xizmatlar/boshqa" },
 ];
 
+// Hamkor paneli (`/partner`) sayt menyusida e'lon qilinmaydi: hamkorlar
+// hamkorlik sahifasidagi bot orqali ro'yxatdan o'tib, panelga bot menyusidan
+// o'tadi.
 const FOOTER_PARTNERS = [
   { label: "Hamkorlik shartlari", to: "/hamkorlar" },
-  { label: "Hamkor paneli", to: "/partner" },
   { label: "Hujjatlar", to: "/hujjatlar" },
 ];
 
@@ -612,7 +612,7 @@ export function SiteFooter() {
         {/* ---------------- brend + qo'llab-quvvatlash (yuqori qator) -------------- */}
         <div className="flex flex-col gap-8 border-b border-white/10 pb-10 lg:flex-row lg:items-start lg:justify-between">
           <div className="max-w-lg">
-            <MillytourLogo mono />
+            <MillyTourLogo mono />
             <p className="mt-4 text-[13.5px] leading-6 text-white/60">
               O'zbekiston bo'ylab sayohat: tasdiqlangan tur paketlar, mahalliy xizmat
               ko'rsatuvchilar va hunarmandchilik bozori — bitta platformada. Milly AI kunlaringiz
@@ -663,7 +663,7 @@ export function SiteFooter() {
                 Telegram bot
               </span>
               <span className="mt-2 block text-[15px] font-bold text-white">
-                @{MAIN_BOT_USERNAME}
+                Botni ochish
               </span>
               <span className="mt-0.5 block text-[12px] text-white/55">
                 Bron, xizmatlar, hamkorlik
@@ -732,7 +732,7 @@ export function SiteFooter() {
               </Link>
             ))}
             <span className="text-[12.5px] text-white/35">
-              © {new Date().getFullYear()} millytour. Barcha huquqlar himoyalangan.
+              © {new Date().getFullYear()} MillyTour. Barcha huquqlar himoyalangan.
             </span>
           </nav>
 

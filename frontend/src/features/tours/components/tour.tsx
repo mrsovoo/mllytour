@@ -1,5 +1,14 @@
 import { Link } from "react-router";
-import { ArrowRight, Clock, Heart, MapPin, Route, Users } from "lucide-react";
+import {
+  ArrowUpRight,
+  CalendarDays,
+  Clock,
+  Heart,
+  MapPin,
+  Route,
+  Star,
+  Users,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
@@ -171,6 +180,13 @@ function discountPercent(tour: TourPackage): number {
     : 0;
 }
 
+/**
+ * Tur kartochkasi.
+ *
+ * Tuzilishi: rasm ustida turkum/tur teglari (chapda) va reyting (o'ngda),
+ * ostida manzil → tur nomi → kun/kecha · guruh · qatnov qatori, eng pastda
+ * narx bloki ($ va so'm) hamda "Batafsil" tugmasi.
+ */
 export function TourCard({
   tour,
   className,
@@ -181,11 +197,13 @@ export function TourCard({
   href?: string;
 }) {
   const discount = discountPercent(tour);
+  // Nishon bo'lmasa, reytingi yuqori turlar "Top tanlov" bilan belgilanadi.
+  const statusBadge = tour.badge ?? (tour.rating >= 4.8 ? "Top tanlov" : null);
 
   return (
     <article
       className={cn(
-        "group flex h-full flex-col overflow-hidden rounded-[24px] border border-border/70 bg-card transition-all duration-300 hover:-translate-y-1 hover:shadow-soft",
+        "group flex h-full flex-col overflow-hidden rounded-[26px] border border-border/60 bg-card shadow-[0_10px_30px_-14px_rgba(15,23,42,0.22)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_55px_-20px_rgba(15,23,42,0.32)]",
         className,
       )}
     >
@@ -197,82 +215,114 @@ export function TourCard({
           decoding="async"
           className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
         />
+
+        {/* Teglar — yarim shaffof ko'k planshetlar */}
         <div className="absolute top-3 left-3 flex flex-wrap items-center gap-1.5">
-          <TourBadge badge={tour.badge} />
-          {isDirection(tour) ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-gold px-2.5 py-1 text-[11px] font-bold tracking-wide text-gold-ink uppercase">
-              <Route className="size-3" aria-hidden="true" />
-              Yo'nalish · {cityCount(tour)} shahar
-            </span>
-          ) : (
-            <span className="rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-bold tracking-wide text-foreground uppercase">
-              {categoryLabel(tour.category)}
-            </span>
-          )}
+          <span className="rounded-full bg-primary/85 px-2.5 py-1 text-[11px] font-semibold text-primary-foreground backdrop-blur-sm">
+            {categoryLabel(tour.category)}
+          </span>
+          <span className="inline-flex items-center gap-1 rounded-full bg-primary/85 px-2.5 py-1 text-[11px] font-semibold text-primary-foreground backdrop-blur-sm">
+            {isDirection(tour) ? (
+              <>
+                <Route className="size-3" aria-hidden="true" />
+                Yo'nalish · {cityCount(tour)} shahar
+              </>
+            ) : (
+              "Tur paket"
+            )}
+          </span>
         </div>
+
+        {/* Reyting — rasmning o'ng yuqori burchagida */}
+        <span className="absolute top-3 right-3 inline-flex items-center gap-1 rounded-full bg-foreground/65 px-2.5 py-1 text-[11.5px] font-bold text-white backdrop-blur-sm">
+          <Star className="size-3.5 fill-gold text-gold" aria-hidden="true" />
+          {tour.rating.toFixed(1)}
+          <span className="font-medium text-white/70">({tour.reviews})</span>
+        </span>
+
+        {discount > 0 ? (
+          <span className="absolute bottom-3 left-3 rounded-full bg-coral px-2 py-0.5 text-[10.5px] font-bold text-coral-foreground">
+            −{discount}%
+          </span>
+        ) : null}
+
         <button
           type="button"
           aria-label="Saqlangan turlarga qo'shish"
           onClick={() => toast.success(`"${tour.title}" saqlangan turlarga qo'shildi`)}
-          className="absolute top-3 right-3 grid size-9 place-items-center rounded-full bg-white/90 text-foreground shadow-xs transition-colors hover:bg-white"
+          className="absolute right-3 bottom-3 grid size-9 place-items-center rounded-full bg-white/90 text-foreground shadow-xs transition-colors hover:bg-white"
         >
           <Heart className="size-4" aria-hidden="true" />
         </button>
       </div>
 
-      <div className="flex flex-1 flex-col p-5">
-        {/* Manzil: shahar(lar) + viloyat */}
-        <p className="flex items-start gap-1.5 text-[13px] font-medium text-muted-foreground">
-          <MapPin className="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden="true" />
-          <span className="min-w-0">
-            <span className="font-semibold text-foreground">{tourAddress(tour)}</span>
-            {isDirection(tour) ? (
-              <span className="mt-0.5 block truncate text-[11.5px]">{tour.region}</span>
-            ) : null}
-          </span>
-        </p>
-        <h3 className="mt-1.5 line-clamp-2 min-h-12 text-[15px] leading-6 font-semibold text-foreground">
+      <div className="flex flex-1 flex-col p-4 sm:p-5">
+        {/* Manzil + maqom nishoni */}
+        <div className="flex items-start justify-between gap-3">
+          <p className="flex min-w-0 items-start gap-1.5 text-[13.5px] leading-5 font-semibold text-foreground">
+            <MapPin className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
+            <span className="min-w-0">
+              {tourAddress(tour)}
+              {isDirection(tour) ? (
+                <span className="mt-0.5 block truncate text-[11.5px] font-medium text-muted-foreground">
+                  {tour.region}
+                </span>
+              ) : null}
+            </span>
+          </p>
+          {statusBadge ? (
+            <span className="shrink-0 rounded-full border border-border px-2.5 py-1 text-[10.5px] font-semibold tracking-wide text-muted-foreground uppercase">
+              {statusBadge}
+            </span>
+          ) : null}
+        </div>
+
+        {/* Tur nomi — manzildan kattaroq */}
+        <h3 className="mt-2 line-clamp-2 min-h-12 text-[17px] leading-6 font-bold tracking-tight text-foreground">
           {tour.title}
         </h3>
-        <div className="mt-3 flex items-center justify-between text-sm">
-          <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-            <Clock className="size-4" aria-hidden="true" />
+
+        {/* Kun/kecha · guruh · qatnov */}
+        <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[12.5px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5">
+            <Clock className="size-3.5" aria-hidden="true" />
             {tour.days} kun / {tour.nights} kecha
           </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-gold/10 px-2 py-1 text-xs font-bold text-gold-ink">
-            <span className="inline-flex items-center gap-0.5">
-              {Array.from({ length: 5 }).map((_, index) => (
-                <span key={index} className={cn("text-[11px]", index < Math.round(tour.rating) ? "text-gold" : "text-muted-foreground/30")}>★</span>
-              ))}
-            </span>
-            {tour.rating.toFixed(1)}
-            <span className="font-medium text-muted-foreground">({tour.reviews})</span>
+          <span className="inline-flex items-center gap-1.5">
+            <Users className="size-3.5" aria-hidden="true" />
+            {tour.groupSize}
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <CalendarDays className="size-3.5" aria-hidden="true" />
+            {tour.nextDeparture}
           </span>
         </div>
-        <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Users className="size-3.5" aria-hidden="true" />
-          {tour.groupSize} · {tour.nextDeparture}
-        </div>
-        <div className="mt-auto flex items-center justify-between border-t pt-4">
-          <div className="flex flex-col">
-            <Price usd={tour.priceFrom} suffix="dan" className="text-[17px]" />
+
+        {/* Narx + harakat tugmasi */}
+        <div className="mt-auto flex items-end justify-between gap-3 pt-4">
+          <div className="flex items-center gap-2">
+            <span className="inline-flex flex-col rounded-xl bg-muted/70 px-3 py-1.5">
+              <Price
+                usd={tour.priceFrom}
+                suffix="dan"
+                className="text-[18px]"
+                secondaryClassName="text-[10.5px]"
+              />
+            </span>
             {tour.oldPrice ? (
-              <span className="mt-0.5 flex items-center gap-1.5">
-                <span className="text-[11px] text-muted-foreground line-through">
-                  ${tour.oldPrice}
-                </span>
-                {discount > 0 ? (
-                  <span className="rounded-full bg-coral/10 px-1.5 py-0.5 text-[10px] font-bold text-coral">
-                    −{discount}%
-                  </span>
-                ) : null}
+              <span className="text-[11.5px] text-muted-foreground line-through">
+                ${tour.oldPrice}
               </span>
             ) : null}
           </div>
-          <Button variant="outline" size="sm" asChild>
+          <Button
+            size="sm"
+            asChild
+            className="shrink-0 rounded-full bg-foreground px-4 text-background hover:bg-foreground/90"
+          >
             <Link to={href ?? `/paketlar/${tour.slug}`}>
               Batafsil
-              <ArrowRight className="size-3.5" aria-hidden="true" />
+              <ArrowUpRight className="size-3.5" aria-hidden="true" />
             </Link>
           </Button>
         </div>
