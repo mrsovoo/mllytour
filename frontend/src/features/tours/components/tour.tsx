@@ -188,27 +188,27 @@ const CATEGORY_ART: Record<
 > = {
   // Fon — ikonka rangining past opacity'li varianti, ikonka — to'q rangi.
   historical: {
-    grad: "from-amber-500/40 via-orange-400/30 to-orange-500/40",
+    grad: "from-amber-500/20 via-orange-400/15 to-orange-500/20",
     ink: "text-amber-600 dark:text-amber-300",
     icon: Landmark,
   },
   eco: {
-    grad: "from-emerald-500/40 via-teal-400/30 to-teal-500/40",
+    grad: "from-emerald-500/20 via-teal-400/15 to-teal-500/20",
     ink: "text-teal-600 dark:text-teal-300",
     icon: TreePine,
   },
   craft: {
-    grad: "from-violet-500/40 via-purple-400/30 to-fuchsia-500/40",
+    grad: "from-violet-500/20 via-purple-400/15 to-fuchsia-500/20",
     ink: "text-violet-600 dark:text-violet-300",
     icon: Palette,
   },
   pilgrimage: {
-    grad: "from-sky-500/40 via-blue-400/30 to-blue-500/40",
+    grad: "from-sky-500/20 via-blue-400/15 to-blue-500/20",
     ink: "text-blue-600 dark:text-blue-300",
     icon: Moon,
   },
   adventure: {
-    grad: "from-orange-500/40 via-red-400/30 to-red-500/40",
+    grad: "from-orange-500/20 via-red-400/15 to-red-500/20",
     ink: "text-red-500 dark:text-red-300",
     icon: Mountain,
   },
