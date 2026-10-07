@@ -126,18 +126,11 @@ export function recommendPackages(
       withinBudget = ratio <= 1;
 
       if (ratio <= 1) {
-        // Byudjet ichida: byudjetni to'liqroq ishlatgan variant foydaliroq
-        // (juda arzon paket "sifati past" bo'lishi mumkin), lekin chegara
-        // hech qachon byudjetdan oshmaydi.
+        // Byudjet ichida: byudjetga eng yaqin (lekin hech qachon oshmagan) variant yuqorida turadi.
         score += 55 + 30 * ratio;
-        reason =
-          gap <= Math.max(10, Math.round(budget * 0.05))
-            ? `Byudjetingizga to'liq mos: jami ~$${total} (byudjet $${budget})`
-            : `Byudjetdan $${gap} arzon: $${perPerson}/kishi, jami ~$${total}`;
+        reason = `~$${total} · byudjetdan $${gap} past`;
       } else {
-        const over = ratio - 1;
-        score += Math.max(0, 55 - over * 110);
-        reason = `Byudjetdan $${Math.round(-gap)} qimmat: $${perPerson}/kishi, jami ~$${total}`;
+        reason = `~$${total} · byudjetdan $${Math.round(-gap)} baland`;
       }
     } else {
       // Byudjet aytilmagan bo'lsa — arzon paketlar yuqorida turadi.
@@ -172,7 +165,25 @@ export function recommendPackages(
     return { tour, perPerson, total, withinBudget, gap, score, reason };
   });
 
-  return scored.sort((a, b) => b.score - a.score || a.total - b.total).slice(0, limit);
+  const sorted = scored.sort((a, b) => b.score - a.score || a.total - b.total);
+
+  // Byudjet aytilgan bo'lsa — FAQAT byudjet ichidagi turlar qaytadi
+  // (byudjetdan oshmagan, unga eng yaqin variantlar). Hech biri sig'masa —
+  // eng arzon uchtasi ko'rsatiladi.
+  if (budget) {
+    const affordable = sorted.filter((row) => row.withinBudget);
+    if (affordable.length >= limit) return affordable.slice(0, limit);
+    if (affordable.length > 0) return affordable;
+    return [...sorted]
+      .sort((a, b) => a.total - b.total)
+      .slice(0, limit)
+      .map((row) => ({
+        ...row,
+        reason: `Eng arzon variant · $${row.perPerson}/kishi, jami ~$${row.total}`,
+      }));
+  }
+
+  return sorted.slice(0, limit);
 }
 
 /** Planner javoblaridan tavsiya uchun kirish ma'lumotini yig'adi. */
@@ -219,8 +230,6 @@ export function recommendationReply(
     (r, index) => `${index + 1}. ${r.tour.title} — ${r.reason}`,
   );
   return (
-    `Katalogdagi mavjud tur paketlardan ${travelers} kishi uchun eng mos variantlar ` +
-    `(narx bo'yicha saralandi):\n\n${lines.join("\n")}\n\n` +
-    "Batafsil ma'lumot «Tur paketlar» bo'limida. Xohlasangiz, dasturni ham tuzib beraman."
+    `Byudjetingizga mos ${recommendations.length} ta tur (${travelers} kishi):\n\n${lines.join("\n")}`
   );
 }

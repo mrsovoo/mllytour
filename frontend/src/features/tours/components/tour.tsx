@@ -4,10 +4,16 @@ import {
   CalendarDays,
   Clock,
   Heart,
+  Landmark,
   MapPin,
+  Moon,
+  Mountain,
+  Palette,
   Route,
   Star,
+  TreePine,
   Users,
+  type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/shared/components/ui/badge";
@@ -18,7 +24,6 @@ import {
   TOUR_KINDS,
   cityCount,
   isDirection,
-  tourAddress,
   type TourKind,
 } from "@/features/tours/lib/tours";
 import { cn } from "@/shared/lib/utils";
@@ -173,6 +178,42 @@ export function TourBadge({ badge }: { badge?: TourPackage["badge"] }) {
   );
 }
 
+/**
+ * Rasm yuklanmagan paketlar uchun turkum bo'yicha fon gradienti va ikonka —
+ * kartochka bo'sh ko'rinmaydi.
+ */
+const CATEGORY_ART: Record<
+  Exclude<CategoryId, "all">,
+  { grad: string; ink: string; icon: LucideIcon }
+> = {
+  // Fon — ikonka rangining past opacity'li varianti, ikonka — to'q rangi.
+  historical: {
+    grad: "from-amber-500/40 via-orange-400/30 to-orange-500/40",
+    ink: "text-amber-600 dark:text-amber-300",
+    icon: Landmark,
+  },
+  eco: {
+    grad: "from-emerald-500/40 via-teal-400/30 to-teal-500/40",
+    ink: "text-teal-600 dark:text-teal-300",
+    icon: TreePine,
+  },
+  craft: {
+    grad: "from-violet-500/40 via-purple-400/30 to-fuchsia-500/40",
+    ink: "text-violet-600 dark:text-violet-300",
+    icon: Palette,
+  },
+  pilgrimage: {
+    grad: "from-sky-500/40 via-blue-400/30 to-blue-500/40",
+    ink: "text-blue-600 dark:text-blue-300",
+    icon: Moon,
+  },
+  adventure: {
+    grad: "from-orange-500/40 via-red-400/30 to-red-500/40",
+    ink: "text-red-500 dark:text-red-300",
+    icon: Mountain,
+  },
+};
+
 /** Chegirma foizi (eski narx yo'q bo'lsa 0) — narx yonidagi qizil nishon uchun. */
 function discountPercent(tour: TourPackage): number {
   return tour.oldPrice && tour.oldPrice > tour.priceFrom
@@ -199,6 +240,8 @@ export function TourCard({
   const discount = discountPercent(tour);
   // Nishon bo'lmasa, reytingi yuqori turlar "Top tanlov" bilan belgilanadi.
   const statusBadge = tour.badge ?? (tour.rating >= 4.8 ? "Top tanlov" : null);
+  const art = CATEGORY_ART[tour.category] ?? CATEGORY_ART.historical;
+  const ArtIcon = art.icon;
 
   return (
     <article
@@ -208,13 +251,29 @@ export function TourCard({
       )}
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-muted">
-        <img
-          src={tour.image}
-          alt={tour.alt}
-          loading="lazy"
-          decoding="async"
-          className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
-        />
+        {tour.image ? (
+          <img
+            src={tour.image}
+            alt={tour.alt}
+            loading="lazy"
+            decoding="async"
+            className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+          />
+        ) : (
+          <div
+            className={cn(
+              "grid size-full place-items-center bg-gradient-to-br transition-transform duration-500 group-hover:scale-[1.04]",
+              art.grad,
+            )}
+          >
+            <div className={cn("flex flex-col items-center gap-2", art.ink)}>
+              <ArtIcon className="size-12" aria-hidden="true" />
+              <span className="text-[11px] font-bold tracking-wider uppercase">
+                {categoryLabel(tour.category)}
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Teglar — yarim shaffof ko'k planshetlar */}
         <div className="absolute top-3 left-3 flex flex-wrap items-center gap-1.5">
@@ -258,16 +317,14 @@ export function TourCard({
 
       <div className="flex flex-1 flex-col p-4 sm:p-5">
         {/* Manzil + maqom nishoni */}
-        <div className="flex items-start justify-between gap-3">
-          <p className="flex min-w-0 items-start gap-1.5 text-[13.5px] leading-5 font-semibold text-foreground">
+        <div className="flex min-h-10 items-start justify-between gap-3">
+          <p className="flex min-w-0 flex-1 items-start gap-1.5 text-[13.5px] leading-5 font-semibold text-foreground">
             <MapPin className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
             <span className="min-w-0">
-              {tourAddress(tour)}
-              {isDirection(tour) ? (
-                <span className="mt-0.5 block truncate text-[11.5px] font-medium text-muted-foreground">
-                  {tour.region}
-                </span>
-              ) : null}
+              <span className="block truncate">{tour.city}</span>
+              <span className="block truncate text-[11.5px] font-medium text-muted-foreground">
+                {tour.region}
+              </span>
             </span>
           </p>
           {statusBadge ? (
@@ -283,25 +340,28 @@ export function TourCard({
         </h3>
 
         {/* Kun/kecha · guruh · qatnov */}
-        <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[12.5px] text-muted-foreground">
-          <span className="inline-flex items-center gap-1.5">
-            <Clock className="size-3.5" aria-hidden="true" />
-            {tour.days} kun / {tour.nights} kecha
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <Users className="size-3.5" aria-hidden="true" />
-            {tour.groupSize}
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <CalendarDays className="size-3.5" aria-hidden="true" />
-            {tour.nextDeparture}
-          </span>
+        {/* Ikkita qator — barcha kartada bir xil balandlik */}
+        <div className="mt-2.5 space-y-1 text-[12.5px] leading-5 text-muted-foreground">
+          <div className="flex items-center gap-x-3">
+            <span className="inline-flex min-w-0 items-center gap-1.5">
+              <Clock className="size-3.5 shrink-0" aria-hidden="true" />
+              <span className="truncate">{tour.days} kun / {tour.nights} kecha</span>
+            </span>
+            <span className="inline-flex min-w-0 items-center gap-1.5">
+              <Users className="size-3.5 shrink-0" aria-hidden="true" />
+              <span className="truncate">{tour.groupSize}</span>
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <CalendarDays className="size-3.5 shrink-0" aria-hidden="true" />
+            <span className="truncate">{tour.nextDeparture}</span>
+          </div>
         </div>
 
         {/* Narx + harakat tugmasi */}
-        <div className="mt-auto flex items-end justify-between gap-3 pt-4">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex flex-col rounded-xl bg-muted/70 px-3 py-1.5">
+        <div className="mt-auto flex items-center justify-between gap-3 border-t border-border/60 pt-4">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="inline-flex min-w-[108px] flex-col rounded-xl bg-muted/70 px-3 py-1.5">
               <Price
                 usd={tour.priceFrom}
                 suffix="dan"

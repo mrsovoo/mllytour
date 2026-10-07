@@ -1,16 +1,14 @@
 import { useMemo, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { motion } from "framer-motion";
 import { useRestMutation } from "@/shared/api/client";
 import { toast } from "sonner";
 import {
-  ArrowRight,
   CalendarDays,
   Loader2,
   MapPin,
   Send,
   SlidersHorizontal,
-  Sparkles,
   Users,
   X,
 } from "lucide-react";
@@ -448,8 +446,7 @@ export default function Packages() {
           {guests ? ` · ${guests} kishi uchun narxlar ko'rsatilgan` : ""}
         </p>
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_320px]">
-          <div>
+        <div className="mt-6">
             {tours.length === 0 ? (
               <Card className="border-dashed">
                 <CardContent className="flex flex-col items-center gap-3 py-14 text-center">
@@ -485,49 +482,6 @@ export default function Packages() {
                 ))}
               </div>
             )}
-          </div>
-
-          <aside className="flex flex-col gap-4">
-            <Card className="border-border/70">
-              <CardContent className="flex flex-col gap-3 py-6">
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold tracking-wide text-primary uppercase">
-                  <Sparkles className="size-3.5" aria-hidden="true" />
-                  Alohida xizmat kerakmi?
-                </span>
-                <h3 className="text-[15px] leading-6 font-semibold text-foreground">
-                  Xizmatlarni alohida bron qiling
-                </h3>
-                <p className="text-sm leading-6 text-muted-foreground">
-                  Mehmonxona, restoran, gid, transfer, tarjimon, fotograf va boshqa turizm
-                  xizmatlari — har birining reytingi va tajribasi bilan. Tur dasturidan tashqari
-                  o'zingizga kerakli xizmatni shu yerdan olasiz.
-                </p>
-                <Button className="self-start" asChild>
-                  <Link to="/xizmatlar">
-                    Xizmatlarni ko'rish
-                    <ArrowRight className="size-4" aria-hidden="true" />
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card className="border-border/70">
-              <CardContent className="flex flex-col gap-2 py-6">
-                <h3 className="text-sm font-semibold text-foreground">
-                  Xizmat ko'rsatuvchimisiz?
-                </h3>
-                <p className="text-sm leading-6 text-muted-foreground">
-                  Gid, transfer, restoran, tarjimon, fotograf, hunarmand, mehmonxona yoki boshqa
-                  turizm xizmati egasi bo'lsangiz — Telegram bot orqali ro'yxatdan o'tib, o'z
-                  boshqaruv panelingizni oling.
-                </p>
-                {/* Navbardagi «Hamkorlik» bilan bir xil sahifaga olib boradi. */}
-                <Button variant="outline" className="mt-1 self-start" asChild>
-                  <Link to="/hamkorlar">Hamkor bo'lish</Link>
-                </Button>
-              </CardContent>
-            </Card>
-          </aside>
         </div>
 
         <ForYouRow />
