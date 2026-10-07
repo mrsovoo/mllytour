@@ -1,5 +1,7 @@
+import extraTours from "./tours.extra.json";
+
 /**
- * millytour — MVP 1.0 kontenti (real O'zbekiston ma'lumotlari).
+ * MillyTour — MVP 1.0 kontenti (real O'zbekiston ma'lumotlari).
  * Narxlar 2026-yil bozor o'rtacha diapazoni asosida. Matnlar UZ/RU/EN uchun
  * qisqa uslubda yozilgan (RU +30% joy uchun hisobga olingan).
  */
@@ -111,7 +113,7 @@ export function cardPhoto(url: string, width = 1000) {
   return url.replace(/w=\d+/, `w=${width}`).replace(/q=\d+/, "q=70");
 }
 
-export const TOUR_PACKAGES: TourPackage[] = [
+const CURATED_TOURS: TourPackage[] = [
   {
     id: "t1",
     slug: "samarqand-ikonik",
@@ -398,6 +400,92 @@ export const TOUR_PACKAGES: TourPackage[] = [
     alt: "Tog' trekking yo'li",
   },
 ];
+
+/**
+ * Qo'shimcha turlar — `tours.extra.json` dan o'qiladi.
+ *
+ * Backend seed ham xuddi shu faylni o'qiydi, shu sababli sayt katalogi va
+ * bazadagi paketlar doim bir xil (slug, nom, narx, kun) bo'ladi.
+ */
+type ExtraTour = {
+  slug: string;
+  category: Exclude<CategoryId, "all">;
+  title: string;
+  city: string;
+  region: string;
+  days: number;
+  price: number;
+  rating: number;
+  reviews: number;
+  groupSize: string;
+  nextDeparture: string;
+  image: keyof typeof IMG;
+  badge?: TourBadge;
+  oldPrice?: number;
+  summary?: string;
+};
+
+/** Turkum bo'yicha standart tavsif, "nima kiritilgan" va asosiy nuqtalar. */
+const CATEGORY_DEFAULTS: Record<
+  Exclude<CategoryId, "all">,
+  { summary: string; includes: string[]; highlights: string[] }
+> = {
+  historical: {
+    summary: "Tarixiy obidalar bo'ylab yo'l — litsenziyali gid, kirish chiptalari va transport bilan.",
+    includes: ["3* mehmonxona", "Nonushta", "Gid xizmati", "Kirish chiptalari", "Transport"],
+    highlights: ["Asosiy obidalar", "Mahalliy oshxona", "Foto to'xtashlar"],
+  },
+  eco: {
+    summary: "Tabiat qo'ynida ekotur — gid, transfer va milliy taomlar bilan.",
+    includes: ["Mehmon uyi yoki yurta", "3 mahal ovqat", "Ekologik gid", "Milliy bog' ruxsatnomasi", "Transfer"],
+    highlights: ["Tabiat manzaralari", "Qishloq xo'jaligi taomlari", "Piyoda yurish yo'llari"],
+  },
+  craft: {
+    summary: "Ustaxonalarda master-klass dasturi — materiallar va gid hamrohligida.",
+    includes: ["Mehmonxona", "Nonushta", "Master-klass", "Materiallar", "Gid hamrohligi"],
+    highlights: ["Ustoz bilan mashg'ulot", "Mahsulotni o'zingiz yasash", "Sotib olish imkoni"],
+  },
+  pilgrimage: {
+    summary: "Ziyoratgohlar bo'ylab ma'naviy safar — gid va transport xizmati bilan.",
+    includes: ["Mehmonxona", "Halol 3 mahal ovqat", "Ziyorat gid", "Transport"],
+    highlights: ["Ziyoratgohlar", "Duo va tilovat", "Mahalliy an'analar"],
+  },
+  adventure: {
+    summary: "Tog' marshruti — tajribali gid va zarur jihozlar bilan.",
+    includes: ["Tog' gidi", "Chodir va jihoz", "3 mahal ovqat", "Birinchi yordam to'plami"],
+    highlights: ["Trekking yo'li", "Panoramali nuqtalar", "Lager kechasi"],
+  },
+};
+
+const EXTRA_TOURS: TourPackage[] = (extraTours as unknown as ExtraTour[]).map((tour, index) => {
+  const preset = CATEGORY_DEFAULTS[tour.category] ?? CATEGORY_DEFAULTS.historical;
+  return {
+    id: `x${index + 1}`,
+    slug: tour.slug,
+    category: tour.category,
+    badge: tour.badge,
+    title: tour.title,
+    summary: tour.summary ?? `${tour.title} — ${tour.days} kunlik dastur. ${preset.summary}`,
+    city: tour.city,
+    region: tour.region,
+    days: tour.days,
+    nights: Math.max(0, tour.days - 1),
+    priceFrom: tour.price,
+    oldPrice: tour.oldPrice,
+    rating: tour.rating,
+    reviews: tour.reviews,
+    groupSize: tour.groupSize,
+    nextDeparture: tour.nextDeparture,
+    languages: ["UZ", "RU", "EN"],
+    includes: preset.includes,
+    highlights: preset.highlights,
+    image: IMG[tour.image] ?? IMG.yol,
+    alt: tour.title,
+  };
+});
+
+/** Tur paketlar va yo'nalishlar — qo'lda yozilgan tanlov + `tours.extra.json`. */
+export const TOUR_PACKAGES: TourPackage[] = [...CURATED_TOURS, ...EXTRA_TOURS];
 
 export function findTour(slug: string) {
   return TOUR_PACKAGES.find((t) => t.slug === slug);

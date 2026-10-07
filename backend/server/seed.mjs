@@ -14,6 +14,7 @@
  * lokalda sinab ko'rilgan holat serverda ham takrorlanadi.
  */
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
 
 /** `--force` bilan tozalanadigan kind'lar. Foydalanuvchi va sessiyalarga tegilmaydi. */
 export const SEED_KINDS = [
@@ -55,6 +56,20 @@ const PACKAGES = [
   ["shahrisabz-termiz", "Shahrisabz va Termiz — buddizm merosi", "Shahrisabz · Termiz", 4, 399],
   ["chatqol-trekking", "Chatqol trekking: Pskomdan Chimyon dovoniga", "Chatqol", 3, 229],
 ];
+
+/**
+ * Qo'shimcha turlar — sayt katalogi bilan **bir xil manba**
+ * (`frontend/src/shared/data/tours.extra.json`). Shu fayl tufayli sayt
+ * katalogi va bazadagi paketlar (slug, nom, kun, narx) doim mos bo'ladi.
+ */
+let EXTRA_TOURS = [];
+try {
+  EXTRA_TOURS = JSON.parse(
+    readFileSync(new URL("../../frontend/src/shared/data/tours.extra.json", import.meta.url), "utf8"),
+  );
+} catch {
+  EXTRA_TOURS = [];
+}
 
 const TOURISTS = [
   ["aziz.karimov@millytour.uz", "Aziz Karimov", ["meros", "gastro"]],
@@ -487,19 +502,24 @@ export async function seedDemoData(db, options = {}) {
 
   // Tur paketlar — `packages/list` shu yozuvlardan o'qiydi (bo'sh bo'lsa
   // frontend statik katalogga tushadi). Har bir katalog paketi uchun bitta yozuv.
+  // Turkum kaliti — slug, chunki bitta shahar ichida turli turkum bo'ladi
+  // (Buxoroda ham tarixiy, ham ziyorat turi bor). Qiymatlar
+  // `frontend/src/shared/data/catalog.ts` dagi `TOUR_CATEGORIES` bilan bir xil
+  // bo'lishi shart, aks holda tur filtrda ko'rinmay qoladi.
   const PACKAGE_CATEGORIES = {
-    Samarqand: "historical",
-    Buxoro: "historical",
-    Xiva: "historical",
-    Toshkent: "city",
-    "Farg'ona": "craft",
-    "Toshkent · Samarqand · Buxoro": "historical",
-    Zomin: "nature",
-    Chimyon: "nature",
-    Nurota: "nature",
-    Rishton: "craft",
-    "Shahrisabz · Termiz": "historical",
-    Chatqol: "adventure",
+    "samarqand-ikonik": "historical",
+    "buxoro-tarixiy": "historical",
+    "xiva-shaharcha": "historical",
+    "toshkent-mega": "historical",
+    "fargona-hunarmand": "craft",
+    "buyuk-ipak-yoli": "historical",
+    "zomin-ekotur": "eco",
+    "chimyon-tog": "adventure",
+    "aydarkul-yurta": "eco",
+    "rishton-kulolchilik": "craft",
+    "buxoro-ziyorat": "pilgrimage",
+    "shahrisabz-termiz": "historical",
+    "chatqol-trekking": "adventure",
   };
   const seededPackages = [];
   for (const [slug, title, city, days, priceFrom] of PACKAGES) {
@@ -513,7 +533,7 @@ export async function seedDemoData(db, options = {}) {
         slug,
         title,
         summary: `${city} bo'ylab ${days} kunlik dastur — gid, transfer va turar joy kiritilgan.`,
-        category: PACKAGE_CATEGORIES[city] || "historical",
+        category: PACKAGE_CATEGORIES[slug] || "historical",
         badge: seededPackages.length < 3 ? "Top tanlov" : null,
         city,
         region: city.split(" · ")[0],
@@ -538,6 +558,61 @@ export async function seedDemoData(db, options = {}) {
     );
     seededPackages.push({ id: packageId, slug, title, city, days, priceFrom });
   }
+
+  // Qo'shimcha turlar — katalog bilan bir xil slug va narxlar (jami 100 paket).
+  for (const [index, tour] of EXTRA_TOURS.entries()) {
+    const createdAt = stamp(now, 140 - index * 2, 9);
+    const packageId = await insertRecord(
+      db,
+      "package",
+      {
+        slug: tour.slug,
+        title: tour.title,
+        summary: `${tour.title} — ${tour.days} kunlik dastur.`,
+        category: tour.category || "historical",
+        badge: null,
+        city: tour.city,
+        region: tour.region,
+        days: tour.days,
+        nights: Math.max(0, tour.days - 1),
+        priceFrom: tour.price,
+        oldPrice: null,
+        rating: tour.rating,
+        reviews: tour.reviews,
+        groupSize: tour.groupSize,
+        nextDeparture: tour.nextDeparture,
+        languages: ["uz", "ru", "en"],
+        includes: ["Gid xizmati", "Kirish chiptalari", "Transport"],
+        highlights: [`${tour.city} asosiy manzaralari`, "Mahalliy oshxona", "Foto to'xtashlar"],
+        image: "",
+        alt: tour.title,
+        status: "published",
+        featured: false,
+      },
+      null,
+      createdAt,
+    );
+    seededPackages.push({
+      id: packageId,
+      slug: tour.slug,
+      title: tour.title,
+      city: tour.city,
+      days: tour.days,
+      priceFrom: tour.price,
+    });
+  }
+
+  /** Buyurtma, sharh va rejalar uchun yagona katalog (100 paket). */
+  const CATALOG_ROWS = [
+    ...PACKAGES.map(([slug, title, city, days, priceFrom]) => ({ slug, title, city, days, priceFrom })),
+    ...EXTRA_TOURS.map((tour) => ({
+      slug: tour.slug,
+      title: tour.title,
+      city: tour.city,
+      days: tour.days,
+      priceFrom: tour.price,
+    })),
+  ];
 
   // Hamkorlar + ularning foydalanuvchi hisoblari
   const providers = [];
@@ -595,7 +670,8 @@ export async function seedDemoData(db, options = {}) {
 
   for (let index = 0; index < statusPlan.length; index += 1) {
     const status = statusPlan[index];
-    const [slug, title, city, days, priceFrom] = PACKAGES[Math.floor(rng() * PACKAGES.length)];
+    const { slug, title, city, days, priceFrom } =
+      CATALOG_ROWS[Math.floor(rng() * CATALOG_ROWS.length)];
     const guests = 1 + Math.floor(rng() * 5);
     // Sanalar shunday taqsimlanadi: pending — bugun/kecha, confirmed — so'nggi
     // 2 hafta, completed/cancelled — o'tmishga cho'zilgan. Shu tufayli admin
@@ -909,7 +985,7 @@ export async function seedDemoData(db, options = {}) {
   // Sharhlar + reaksiyalar
   const reviewIds = [];
   for (let index = 0; index < 64; index += 1) {
-    const [slug, title, city] = PACKAGES[Math.floor(rng() * PACKAGES.length)];
+    const { slug, title, city } = CATALOG_ROWS[Math.floor(rng() * CATALOG_ROWS.length)];
     const createdAt = stamp(now, Math.floor(rng() * 80), 15);
     const userId = touristIds[Math.floor(rng() * touristIds.length)];
     const reviewId = await insertRecord(
@@ -942,7 +1018,8 @@ export async function seedDemoData(db, options = {}) {
 
   // AI rejalar (kabinet "Mening dasturlarim" bo'limi uchun)
   for (let index = 0; index < 12; index += 1) {
-    const [slug, title, city, days, priceFrom] = PACKAGES[Math.floor(rng() * PACKAGES.length)];
+    const { slug, title, city, days, priceFrom } =
+      CATALOG_ROWS[Math.floor(rng() * CATALOG_ROWS.length)];
     const travelers = 1 + Math.floor(rng() * 4);
     const total = priceFrom * travelers;
     await insertRecord(
